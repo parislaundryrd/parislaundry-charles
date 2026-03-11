@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./css/styles_1.css">
+    <title>Buscar Facturas - Paris Laundry</title>
+    <link rel="icon" href="./img/Paris Laundry 1.png" type="image/png">
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-firestore-compat.js"></script>
+</head>
+
+<body>
+
+    <div class="MasterBox0">
+
+        <div class="container_facturas">
+            <div class="panelFacturas_tittle">
+                <h2>Verificar Estado de Lavado por ID</h2>
+            </div>
+
+            <div class="panelFacturas_body">
+                <div class="box_search-container">
+                    <div class="search-container">
+                        <input type="text" id="searchInput" placeholder="Buscar ID..." />
+                        <div class="cantidad-img"><img src="./img/icon/buscar3.png"></div>
+                    </div>
+                    <div id="message" style="color: red; display: none;"></div>
+                </div>
+
+
+            </div>
+
+            <div class="panelFacturas_down">
+                <p>© Paris Laundry RD - 2025</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal único para mostrar el estado -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content">
+            <div class="modal_preview_factura_tittle">
+                <span class="close" id="closeStatusModal">&times;</span>
+                <h2 id="modalTitle">Estado del Lavado</h2>
+            </div>
+            <div class="modal_preview_factura_body">
+
+                <!-- Contenido para "Pago Pendiente" -->
+                <div id="pendingInvoiceDetails" class="invoice-status" style="display: none;">
+
+
+                    <div class="fechaYid">
+                        <div>
+                            <span>Fecha de la Factura:</span> <strong style="font-size: 19px;"
+                                id="pendingDate"></strong>
+                        </div>
+
+                        <div>
+                            <span>ID de la factura:</span><strong style="font-size: 37px;" id="pendingID"></strong>
+
+                        </div>
+                    </div>
+
+                    <div class="imgContent">
+                        <div>
+                            <p style="font-size: 25px;font-weight: bold">Estamos pendiente a su pago</p>
+                            <img src="./img/status/pagopendiente1.gif" alt="pago pendiente"
+                                style="height: 56%;filter: contrast(1.5);">
+
+                            <p>Cuando se confirme su pago podra ver el estado de su ropa en esta misma pantalla</p>
+                        </div>
+                    </div>
+
+                </div>
+                <!-- Contenido para "Pago Pendiente" FIN -->
+
+
+                <!-- Contenido para "Pagado" -->
+                <div id="paidInvoiceDetails" class="invoice-status" style="display: none; height: 100%;">
+
+
+                    <div class="fechaYid">
+                        <div>
+                            <span>Fecha y hora de la Factura:</span> <strong style="font-size: 19px;"
+                                id="paidDate"></strong>
+                        </div>
+
+                        <div>
+                            <span>ID de la Factura:</span> <strong style="font-size: 37px;" id="paidID"></strong>
+                        </div>
+                    </div>
+
+                    <div class="imgContent">
+                        <div>
+                            <p style="font-size: 25px;font-weight: bold;">Su ropa está en proceso de lavado</p>
+                            <img src="./img/status/lavadora0.gif" alt="Lavando" />
+                            <p>Cuando su ropa esté lista le notificaremos en esta misma pantalla</p>
+                        </div>
+                    </div>
+
+                </div>
+                <!-- Contenido para "Pagado" FIN -->
+
+                <!-- Contenido para "Pagado Listo" -->
+                <div id="readyInvoiceDetails" class="invoice-status" style="display: none;">
+
+                    <div class="fechaYid">
+                        <div>
+                            <span>Fecha de la Factura:</span> <strong style="font-size: 19px;" id="readyDate"></strong>
+                        </div>
+
+                        <div>
+                            <span>ID de la Factura:</span> <strong style="font-size: 37px;" id="readyID"></strong>
+                        </div>
+                    </div>
+
+                    <div class="imgContent">
+                        <div>
+                            <p style="font-size: 25px;font-weight: bold;">Su ropa está lista para ser recogida
+                            </p>
+                            <img src="./img/status/check1.png" style="height: 24%; margin: 50px 0px;" alt="Lavando" />
+                            <p>¡Gracias por preferirnos!</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="modal_preview_factura_down">
+                <p>© Paris Laundry RD - 2025</p>
+            </div>
+
+
+        </div>
+    </div>
+
+    <script>
+        // Configuración de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDdG-CP2kO3v-zkkjD17Wj028QJvjp54qY",
+            authDomain: "paris-laundry.firebaseapp.com",
+            projectId: "paris-laundry",
+            storageBucket: "paris-laundry.appspot.com",
+            messagingSenderId: "1022712814457",
+            appId: "1:1022712814457:web:7bddb47ed46bac22c32da8"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const statusModal = document.getElementById("statusModal");
+        const closeStatusModal = document.getElementById("closeStatusModal");
+        const searchInput = document.getElementById("searchInput");
+        const messageDiv = document.getElementById("message");
+
+        let unsubscribe = null; // Para almacenar la función de desuscripción del listener
+
+        closeStatusModal.onclick = () => {
+            statusModal.style.display = "none";
+        };
+
+        searchInput.addEventListener("keypress", async (event) => {
+            if (event.key === "Enter") {
+                const searchTerm = searchInput.value.trim().toLowerCase(); // Convertir a minúsculas
+                messageDiv.style.display = "none"; // Limpiar mensaje previo
+
+                if (searchTerm) {
+                    // Si ya hay un listener activo, desuscribirse
+                    if (unsubscribe) {
+                        unsubscribe();
+                    }
+
+                    const querySnapshot = await db.collection("facturas").where("id", "==", searchTerm).get();
+                    if (!querySnapshot.empty) {
+                        const doc = querySnapshot.docs[0];
+                        const data = { id: doc.id, ...doc.data() };
+
+                        // Actualizar la URL con el ID
+                        window.location.hash = `id-${data.id}`;
+
+                        // Mostrar el modal correspondiente según el estado
+                        updateModal(data);
+
+                        // Escuchar cambios en tiempo real
+                        unsubscribe = db.collection("facturas").doc(doc.id).onSnapshot((docSnapshot) => {
+                            const updatedData = { id: docSnapshot.id, ...docSnapshot.data() };
+                            updateModal(updatedData);
+                        });
+                    } else {
+                        messageDiv.textContent = "Factura no encontrada";
+                        messageDiv.style.display = "block";
+                    }
+                } else {
+                    messageDiv.textContent = "Por favor, ingrese un ID.";
+                    messageDiv.style.display = "block";
+                }
+            }
+        });
+
+        // Función para actualizar el modal según el estado
+        // Función para actualizar el modal según el estado
+        const updateModal = (data) => {
+            const options = {
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                hour12: true // Formato de 12 horas
+            };
+            const fecha = new Date(data.timestamp).toLocaleString('es-ES', options); // Formatear la fecha
+
+
+            // Ocultar todos los detalles de la factura
+            document.querySelectorAll('.invoice-status').forEach(div => {
+                div.style.display = 'none';
+            });
+
+            switch (data.status) {
+                case "pago pendiente":
+                    document.getElementById("pendingID").textContent = data.id;
+                    document.getElementById("pendingDate").textContent = fecha;
+                    document.getElementById("pendingInvoiceDetails").style.display = "block";
+                    break;
+                case "pagado":
+                    document.getElementById("paidID").textContent = data.id;
+                    document.getElementById("paidDate").textContent = fecha;
+                    document.getElementById("paidInvoiceDetails").style.display = "block";
+                    break;
+                case "pagado listo":
+                    document.getElementById("readyID").textContent = data.id;
+                    document.getElementById("readyDate").textContent = fecha;
+                    document.getElementById("readyInvoiceDetails").style.display = "block";
+                    break;
+                default:
+                    messageDiv.textContent = "Estado desconocido";
+                    messageDiv.style.display = "block";
+                    return; // Salir de la función si el estado es desconocido
+            }
+
+            statusModal.style.display = "block"; // Mostrar el modal
+            messageDiv.style.display = "none"; // Ocultar mensaje de error
+        };
+
+        // Función para abrir el modal si hay un ID en la URL
+        const openModalFromHash = async () => {
+            const hash = window.location.hash;
+            if (hash.startsWith("#id-")) {
+                const id = hash.substring(4); // Obtener el ID del hash
+                const querySnapshot = await db.collection("facturas").where("id", "==", id).get();
+                if (!querySnapshot.empty) {
+                    const doc = querySnapshot.docs[0];
+                    const data = { id: doc.id, ...doc.data() };
+
+                    // Mostrar el modal correspondiente según el estado
+                    updateModal(data);
+
+                    // Escuchar cambios en tiempo real
+                    unsubscribe = db.collection("facturas").doc(doc.id).onSnapshot((docSnapshot) => {
+                        const updatedData = { id: docSnapshot.id, ...docSnapshot.data() };
+                        updateModal(updatedData);
+                    });
+                } else {
+                    messageDiv.textContent = "Factura no encontrada";
+                    messageDiv.style.display = "block";
+                }
+            }
+        };
+
+        // Llamar a la función al cargar la página
+        window.onload = openModalFromHash;
+    </script>
+
+</body>
+
+</html>

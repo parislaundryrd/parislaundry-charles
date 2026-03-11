@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paris Laundry RD</title>
+    <link rel="icon" href="./img/Paris Laundry 1.png" type="image/png">
+    <link rel="stylesheet" href="./css/styles_1.css">
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-firestore-compat.js"></script>
+    <script src="./js/app.js"></script>
+
+    <style>
+        .bubbles {
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            overflow: hidden;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .bubble {
+            position: absolute;
+            bottom: -100px;
+            width: 40px;
+            height: 40px;
+            background: #81cfff52;
+            border-radius: 50%;
+            opacity: 0.5;
+            animation: rise 10s infinite ease-in;
+            box-shadow: 10px 7px 22px -2px rgb(255 255 255) inset, -1px -1px 13px 13px rgb(255 155 243 / 37%) inset;
+        }
+
+        .bubbleDestello1 {
+            position: absolute;
+            height: 17%;
+            width: 17%;
+            left: 23%;
+            top: 18%;
+            background: #ffffff;
+            border-radius: 100%;
+            filter: blur(3px);
+        }
+
+        .bubbleDestello2 {
+            position: absolute;
+            height: 20%;
+            width: 19%;
+            left: 57%;
+            top: 66%;
+            background: #ffffff;
+            border-radius: 100%;
+            filter: blur(8px);
+        }
+
+        .bubbleDestello3 {
+            position: absolute;
+            height: 9%;
+            width: 9%;
+            left: 21%;
+            top: 37%;
+            background: #ffffffab;
+            border-radius: 100%;
+            filter: blur(2px);
+        }
+
+        .bubble:nth-child(1) {
+            width: 40px;
+            height: 40px;
+            left: 10%;
+            animation-duration: 8s;
+            animation-delay: -2s;
+        }
+
+        .bubble:nth-child(2) {
+            width: 20px;
+            height: 20px;
+            left: 20%;
+            animation-duration: 5s;
+            animation-delay: -4s;
+        }
+
+        .bubble:nth-child(3) {
+            width: 50px;
+            height: 50px;
+            left: 35%;
+            animation-duration: 7s;
+            animation-delay: -1s;
+        }
+
+        .bubble:nth-child(4) {
+            width: 80px;
+            height: 80px;
+            left: 50%;
+            animation-duration: 11s;
+            animation-delay: -6s;
+        }
+
+        .bubble:nth-child(5) {
+            width: 35px;
+            height: 35px;
+            left: 55%;
+            animation-duration: 6s;
+            animation-delay: -3s;
+        }
+
+        .bubble:nth-child(6) {
+            width: 45px;
+            height: 45px;
+            left: 65%;
+            animation-duration: 8s;
+            animation-delay: -5s;
+        }
+
+        .bubble:nth-child(7) {
+            width: 90px;
+            height: 90px;
+            left: 70%;
+            animation-duration: 12s;
+            animation-delay: -8s;
+        }
+
+        .bubble:nth-child(8) {
+            width: 25px;
+            height: 25px;
+            left: 80%;
+            animation-duration: 6s;
+            animation-delay: -2.5s;
+        }
+
+        .bubble:nth-child(9) {
+            width: 15px;
+            height: 15px;
+            left: 70%;
+            animation-duration: 5s;
+            animation-delay: -3.5s;
+        }
+
+        .bubble:nth-child(10) {
+            width: 90px;
+            height: 90px;
+            left: 25%;
+            animation-duration: 10s;
+            animation-delay: -7s;
+        }
+
+        .bubble:nth-child(11) {
+            width: 30px;
+            height: 30px;
+            left: 15%;
+            animation-duration: 9s;
+            animation-delay: -4.5s;
+        }
+
+        .bubble:nth-child(12) {
+            width: 60px;
+            height: 60px;
+            left: 85%;
+            animation-duration: 13s;
+            animation-delay: -9s;
+        }
+
+        .bubble:nth-child(13) {
+            width: 25px;
+            height: 25px;
+            left: 40%;
+            animation-duration: 7s;
+            animation-delay: -5.5s;
+        }
+
+        .bubble:nth-child(14) {
+            width: 75px;
+            height: 75px;
+            left: 5%;
+            animation-duration: 14s;
+            animation-delay: -10s;
+        }
+
+        @keyframes rise {
+            0% {
+                bottom: -100px;
+                transform: translateX(0);
+            }
+
+            50% {
+                transform: translate(100px);
+            }
+
+            100% {
+                bottom: 100vh;
+                transform: translateX(-200px);
+            }
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="master_box">
+        <section class="sticky">
+            <div class="bubbles">
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+                <div class="bubble">
+                    <div class="bubbleDestello1"></div>
+                    <div class="bubbleDestello2"></div>
+                    <div class="bubbleDestello3"></div>
+                </div>
+            </div>
+        </section>
+
+ <div class="container_master">
+        <div class="container_logo">
+            <h1>¡Bienvenido!</h1>
+        </div>
+
+        <div class="container_logo">
+            <img src="./img/Paris Laundry 1.png" alt="París Laundry Logo">
+        </div>
+
+        <div class="box_search-container">
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="Introduce tu ID para consultar tu ropa..." />
+                <div class="cantidad-img"><img src="./img/icon/buscar3.png" alt="Buscar"></div>
+            </div>
+            <div id="message" style="color: red; display: none;"></div>
+        </div>
+
+        <!-- Botón de WhatsApp -->
+        <a href="https://wa.me/18495232591?text=Hola" 
+           class="whatsapp-button" 
+           target="_blank">
+            <svg class="whatsapp-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893A11.821 11.821 0 0020.064 3.687"/>
+            </svg>
+            <div class="whatsapp-text">
+                <span class="whatsapp-contact">¡Contáctanos!</span>
+                <span class="whatsapp-number">(849) 523-2591</span>
+            </div>
+        </a>
+
+<div class="container_info">
+
+                            <h2 style="text-align: center;margin-block-start: 2px;margin-block-end: 2px;">Horario de Atención</h2>
+
+                        <div style="display: inline-flex;flex-direction: row;align-items: center;gap: 10px;font-size: 13px;">
+                            <img src="./img/icon/reloj1.png" style="height: 75px;">
+                            <p><strong>📅 Lunes a Viernes:</strong> 8:00AM - 8:00PM<br>
+                                <strong>📅 Sábados:</strong> 8:30AM - 7:00PM<br>
+                                <strong>🚫 Domingos:</strong> No laborable
+                            </p>
+                        </div>
+
+
+</div>
+
+
+
+
+
+
+
+        <div class="container_cube_2">
+            <div class="carousel-container" id="carousel">
+                <div class="carousel-item item-1">
+                    <div class="item-content">
+                        <h3 class="item-title">¿Cómo Funciona?</h3>
+                        <p class="item-description">Somos una lavandería tipo Laundry. Nos traes tu ropa sucia y te la
+                            entregamos limpia, doblada y perfumada, ¡todo el mismo día!</p>
+                    </div>
+                </div>
+
+                <div class="carousel-item item-2">
+                    <div class="item-content">
+                        <h3 class="item-title">Servicios:</h3>
+                        <p class="item-description">✔️ Lavado<br>
+                            ✔️ Secado<br>
+                            ✔️ Doblado<br>
+                            ✔️ Ropa en general<br>
+                            ✔️ <strong>Especiales:</strong> Sábanas, toallas, colchas, manteles y cortinas</p>
+                    </div>
+                </div>
+
+                <div class="carousel-item item-3">
+                    <div class="item-content">
+                        <h3 class="item-title">Arte & Creatividad</h3>
+                        <p class="item-description">Sumérgete en un universo de colores, formas y expresiones artísticas
+                            contemporáneas.</p>
+                    </div>
+                </div>
+
+                <div class="carousel-item item-4">
+                    <div class="item-content">
+                        <h3 class="item-title">Gastronomía Premium</h3>
+                        <p class="item-description">Degusta sabores excepcionales y descubre la alta cocina en su máxima
+                            expresión culinaria.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="scroll-indicators">
+                <div class="indicator active"></div>
+                <div class="indicator"></div>
+                <div class="indicator"></div>
+                <div class="indicator"></div>
+            </div>
+        </div>
+
+
+
+
+
+
+
+
+    </div>
+
+
+    <div class="container_master" style="display: none;">
+
+        <div class="container_body">
+
+
+            <!-- Contenido -->
+            <div class="contenido">
+
+
+
+
+
+
+                <div class="parrafo" style="display: inline-flex;flex-direction: column;align-items: center;">
+                    <h2 style="text-align: center;">Horario de Atención</h2>
+
+                    <div style="display: inline-flex;flex-direction: row;align-items: center;gap: 10px;">
+                        <img src="./img/icon/reloj1.png" style="height: 75px;">
+                        <p><strong>📅 Lunes a Viernes:</strong> 8:00AM - 8:00PM<br>
+                            <strong>📅 Sábados:</strong> 8:30AM - 7:00PM<br>
+                            <strong>🚫 Domingos:</strong> No laborable
+                        </p>
+                    </div>
+                </div>
+
+                <div class="parrafo">
+                    <h2 style="text-align: center;">¿Cómo Funciona?</h2>
+                    <p>Somos una lavandería tipo Laundry. Nos traes tu ropa sucia y te la entregamos limpia, doblada
+                        y
+                        perfumada, ¡todo el mismo día!</p>
+
+                    <h3>Servicios:</h3>
+
+                    <p>✔️ Lavado<br>
+                        ✔️ Secado<br>
+                        ✔️ Doblado<br>
+                        ✔️ Ropa en general<br>
+                        ✔️ <strong>Especiales:</strong> Sábanas, toallas, colchas, manteles y cortinas</p>
+                </div>
+
+
+                <div class="toggle-container">
+                    <h4 class="toggle-header">Productos Utilizados ➕</h4>
+                    <div class="toggle-content">
+                        <p>🧴 Detergente<br>
+                            🧴 Suavizante<br>
+                            🧴 Fundas perfumadas<br>
+                            🧴 Perlas aromatizantes<br>
+                            🧴 Blanqueador<br>
+                            🧴 Desmanchante<br>
+                            🧴 Tratamiento para moho y óxido</p>
+                    </div>
+                </div>
+
+                <div class="toggle-container">
+                    <h4 class="toggle-header">Preguntas Frecuentes ➕</h4>
+                    <div class="toggle-content">
+                        <p><strong>🔹¿Tiempo de entrega?</strong><br>
+                            Aproximadamente 2 - 3 horas, dependiendo del volumen de órdenes en turno.</p>
+
+                        <p><strong>🔹¿Hasta qué hora se reciben órdenes para entrega el mismo día?</strong><br>
+                            Hasta las 5:00 PM.</p>
+
+                        <p><strong>🔹¿Puedo elegir solo lavar o solo secar?</strong><br>
+                            Sí, puedes optar por:<br>
+                            ✔️ Lavado y secado<br>
+                            ✔️ Solo secado<br>
+                            ✔️ Lavado y exprimido</p>
+
+                        <p><strong>🔹¿Las órdenes se entregan dobladas y empacadas?</strong><br>
+                            Sí, todas las órdenes se entregan dobladas y empacadas.</p>
+
+                        <p><strong>🔹¿Puedo quedarme a dividir mi ropa?</strong><br>
+                            Sí, si prefieres dividir tu ropa, puedes hacerlo antes del lavado.</p>
+
+                        <p><strong>🔹¿Puedo traer mi propio detergente?</strong><br>
+                            Sí, en caso de alergias, puedes traer tu propio detergente. No obstante, contamos con
+                            productos
+                            especializados para pieles sensibles.</p>
+                    </div>
+                </div>
+
+
+                <div class="toggle-container">
+                    <h4 class="toggle-header">Información Importante ➕</h4>
+                    <div class="toggle-content">
+
+                        <h3>No procesamos:</h3>
+                        <p>❌ Alfombras<br>
+                            ❌ Cojines<br>
+                            ❌ Peluches<br>
+                            ❌ Ropa de animales / mascotas<br>
+                            ❌ Sacos de acampar</p>
+
+                        <h3>No usamos:</h3>
+                        <p>❌ Detergente rayado o en pasta</p>
+                    </div>
+                </div>
+
+
+
+
+                <div class="parrafo" style="padding: 0px 7px;">
+                    <h2 style="text-align: center;">Visítanos!</h2>
+                    <p><strong>Estamos ubicados en:</strong> Santo Domingo Este, Sector Alma Rosa, Calle Club Activo
+                        2030
+                        #24, 2do nivel.</p>
+
+                    <!-- Start Map -->
+                    <iframe class="map-iframe"
+                        src="https://maps.google.com/maps?q=18.4955583597753, -69.85320459280894&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                        allowfullscreen="" loading="lazy">
+                    </iframe>
+                    <!-- End Map -->
+                </div>
+
+
+            </div>
+            <!-- Contenido FIN -->
+
+            <div class="container_down">
+
+                <h3>Siguenos en:</h3>
+
+                <div class="cubeSocial">
+                    <a href="#"></a>
+                    <a href="#"></a>
+                    <a href="#"></a>
+                </div>
+
+                <img src="./img/Paris Laundry 1.png" style="height: 130px;">
+
+                <p>© 2025 ParisLaundryRD. Todos los derechos reservados.<br> Desarrollado por José Polanco.</p>
+            </div>
+
+        </div>
+
+
+    </div>
+    </div>
+
+    <!-- Modal único para mostrar el estado -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content">
+            <div class="modal_preview_factura_tittle">
+                <span class="close" id="closeStatusModal">&times;</span>
+                <h2 id="modalTitle">Estado del Lavado</h2>
+            </div>
+            <div class="modal_preview_factura_body">
+
+                <!-- Contenido para "Pago Pendiente" -->
+                <div id="pendingInvoiceDetails" class="invoice-status" style="display: none;">
+
+
+                    <div class="fechaYid">
+                        <div>
+                            <span>Fecha de la Factura:</span> <strong style="font-size: 19px;"
+                                id="pendingDate"></strong>
+                        </div>
+
+                        <div>
+                            <span>ID de la factura:</span><strong style="font-size: 37px;" id="pendingID"></strong>
+
+                        </div>
+                    </div>
+
+                    <div class="imgContent">
+                        <div>
+                            <p style="font-size: 25px;font-weight: bold">Estamos pendiente a su pago</p>
+                            <img src="./img/status/pagopendiente1.gif" alt="pago pendiente"
+                                style="height: 56%;filter: contrast(1.5);">
+
+                            <p>Cuando se confirme su pago podra ver el estado de su ropa en esta misma pantalla</p>
+                        </div>
+                    </div>
+
+                </div>
+                <!-- Contenido para "Pago Pendiente" FIN -->
+
+
+                <!-- Contenido para "Pagado" -->
+                <div id="paidInvoiceDetails" class="invoice-status" style="display: none; height: 100%;">
+
+
+                    <div class="fechaYid">
+                        <div>
+                            <span>Fecha y hora de la Factura:</span> <strong style="font-size: 19px;"
+                                id="paidDate"></strong>
+                        </div>
+
+                        <div>
+                            <span>ID de la Factura:</span> <strong style="font-size: 37px;" id="paidID"></strong>
+                        </div>
+                    </div>
+
+                    <div class="imgContent">
+                        <div>
+                            <p style="font-size: 25px;font-weight: bold;">Su ropa está en proceso de lavado</p>
+                            <img src="./img/status/lavadora0.gif" alt="Lavando" />
+                            <p>Cuando su ropa esté lista le notificaremos en esta misma pantalla</p>
+                        </div>
+                    </div>
+
+                </div>
+                <!-- Contenido para "Pagado" FIN -->
+
+                <!-- Contenido para "Pagado Listo" -->
+                <div id="readyInvoiceDetails" class="invoice-status" style="display: none;">
+
+                    <div class="fechaYid">
+                        <div>
+                            <span>Fecha de la Factura:</span> <strong style="font-size: 19px;" id="readyDate"></strong>
+                        </div>
+
+                        <div>
+                            <span>ID de la Factura:</span> <strong style="font-size: 37px;" id="readyID"></strong>
+                        </div>
+                    </div>
+
+                    <div class="imgContent">
+                        <div>
+                            <p style="font-size: 25px;font-weight: bold;">Su ropa está lista para ser recogida
+                            </p>
+                            <img src="./img/status/check1.png" style="height: 24%; margin: 50px 0px;" alt="Lavando" />
+                            <p>¡Gracias por preferirnos!</p>
+                        </div>
+                    </div>
+
+                </div>
+                <!-- Contenido para "Pagado Listo" FIN -->
+
+
+
+            </div>
+
+            <div class="modal_preview_factura_down">
+                <p>Developed by J.P.</p>
+            </div>
+
+
+        </div>
+    </div>
+
+    <script>
+
+
+        const statusModal = document.getElementById("statusModal");
+        const closeStatusModal = document.getElementById("closeStatusModal");
+        const searchInput = document.getElementById("searchInput");
+        const messageDiv = document.getElementById("message");
+
+        let unsubscribe = null; // Para almacenar la función de desuscripción del listener
+
+        closeStatusModal.onclick = () => {
+            statusModal.style.display = "none";
+        };
+
+        searchInput.addEventListener("keypress", async (event) => {
+            if (event.key === "Enter") {
+                const searchTerm = searchInput.value.trim().toLowerCase(); // Convertir a minúsculas
+                messageDiv.style.display = "none"; // Limpiar mensaje previo
+
+                if (searchTerm) {
+                    // Si ya hay un listener activo, desuscribirse
+                    if (unsubscribe) {
+                        unsubscribe();
+                    }
+
+                    const querySnapshot = await db.collection("facturas").where("id", "==", searchTerm).get();
+                    if (!querySnapshot.empty) {
+                        const doc = querySnapshot.docs[0];
+                        const data = { id: doc.id, ...doc.data() };
+
+                        // Actualizar la URL con el ID
+                        window.location.hash = `id-${data.id}`;
+
+                        // Mostrar el modal correspondiente según el estado
+                        updateModal(data);
+
+                        // Escuchar cambios en tiempo real
+                        unsubscribe = db.collection("facturas").doc(doc.id).onSnapshot((docSnapshot) => {
+                            const updatedData = { id: docSnapshot.id, ...docSnapshot.data() };
+                            updateModal(updatedData);
+                        });
+                    } else {
+                        messageDiv.textContent = "Factura no encontrada";
+                        messageDiv.style.display = "block";
+                    }
+                } else {
+                    messageDiv.textContent = "Por favor, ingrese un ID.";
+                    messageDiv.style.display = "block";
+                }
+            }
+        });
+
+        // Función para actualizar el modal según el estado
+        const updateModal = (data) => {
+            // Ocultar el teclado
+            searchInput.blur(); // Esto oculta el teclado en dispositivos móviles
+
+            const options = {
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                hour12: true // Formato de 12 horas
+            };
+
+            let fecha;
+            // Verificar si el timestamp es un objeto de tipo Timestamp de Firebase
+            if (data.timestamp instanceof firebase.firestore.Timestamp) {
+                // Convertir a Date y ajustar a UTC-4
+                const date = data.timestamp.toDate();
+                const utcOffset = -4 * 60; // UTC-4 en minutos
+                const localDate = new Date(date.getTime() + (utcOffset * 60 * 1000));
+                fecha = localDate.toLocaleString('es-ES', options);
+            } else {
+                // Si el timestamp no es un objeto Timestamp, intentar convertirlo directamente
+                const date = new Date(data.timestamp);
+                const utcOffset = -4 * 60; // UTC-4 en minutos
+                const localDate = new Date(date.getTime() + (utcOffset * 60 * 1000));
+                fecha = localDate.toLocaleString('es-ES', options);
+            }
+
+            // Ocultar todos los detalles de la factura
+            document.querySelectorAll('.invoice-status').forEach(div => {
+                div.style.display = 'none';
+            });
+
+            switch (data.status) {
+                case "pago pendiente":
+                    document.getElementById("pendingID").textContent = data.id;
+                    document.getElementById("pendingDate").textContent = fecha;
+                    document.getElementById("pendingInvoiceDetails").style.display = "block";
+                    break;
+                case "pagado":
+                    document.getElementById("paidID").textContent = data.id;
+                    document.getElementById("paidDate").textContent = fecha;
+                    document.getElementById("paidInvoiceDetails").style.display = "block";
+                    break;
+                case "pagado listo":
+                    document.getElementById("readyID").textContent = data.id;
+                    document.getElementById("readyDate").textContent = fecha;
+                    document.getElementById("readyInvoiceDetails").style.display = "block";
+                    break;
+                default:
+                    messageDiv.textContent = "Estado desconocido";
+                    messageDiv.style.display = "block";
+                    return; // Salir de la función si el estado es desconocido
+            }
+
+            statusModal.style.display = "block"; // Mostrar el modal
+            messageDiv.style.display = "none"; // Ocultar mensaje de error
+        };
+
+        // Función para abrir el modal si hay un ID en la URL
+        const openModalFromHash = async () => {
+            const hash = window.location.hash;
+            if (hash.startsWith("#id-")) {
+                const id = hash.substring(4); // Obtener el ID del hash
+                const querySnapshot = await db.collection("facturas").where("id", "==", id).get();
+                if (!querySnapshot.empty) {
+                    const doc = querySnapshot.docs[0];
+                    const data = { id: doc.id, ...doc.data() };
+
+                    // Mostrar el modal correspondiente según el estado
+                    updateModal(data);
+
+                    // Escuchar cambios en tiempo real
+                    unsubscribe = db.collection("facturas").doc(doc.id).onSnapshot((docSnapshot) => {
+                        const updatedData = { id: docSnapshot.id, ...docSnapshot.data() };
+                        updateModal(updatedData);
+                    });
+                } else {
+                    messageDiv.textContent = "Factura no encontrada";
+                    messageDiv.style.display = "block";
+                }
+            }
+        };
+
+        // Llamar a la función al cargar la página
+        window.onload = openModalFromHash;
+    </script>
+
+
+
+    <script>
+        // Script para mostrar/ocultar las secciones
+        document.querySelectorAll('.toggle-header').forEach(header => {
+            header.addEventListener('click', function () {
+                const content = this.nextElementSibling; // Obtener el contenido siguiente
+                const isVisible = content.classList.contains('show'); // Verificar si el contenido es visible
+                content.classList.toggle('show', !isVisible); // Alternar la clase 'show'
+                this.innerText = isVisible ? this.innerText.replace('➖', '➕') : this.innerText.replace('➕', '➖'); // Cambiar texto
+            });
+        });
+    </script>
+
+
+    <script>
+        // Script mejorado para indicadores de scroll
+        const carousel = document.getElementById('carousel');
+        const indicators = document.querySelectorAll('.indicator');
+        const indicatorsContainer = document.querySelector('.scroll-indicators');
+
+        function updateIndicators() {
+            const scrollLeft = carousel.scrollLeft;
+            const scrollWidth = carousel.scrollWidth;
+            const clientWidth = carousel.clientWidth;
+
+            // Ocultar indicadores si todos los elementos están visibles
+            if (scrollWidth <= clientWidth + 5) { // +5 para margen de error
+                indicatorsContainer.classList.add('hidden');
+                return;
+            } else {
+                indicatorsContainer.classList.remove('hidden');
+            }
+
+            let activeIndex = 0;
+
+            // Detectar el primer elemento (posición inicial)
+            if (scrollLeft <= 10) { // Margen de error para la posición inicial
+                activeIndex = 0;
+            }
+            // Detectar el último elemento (posición final)
+            else if (scrollLeft + clientWidth >= scrollWidth - 10) {
+                activeIndex = indicators.length - 1;
+            }
+            // Detectar elementos intermedios
+            else {
+                const items = carousel.querySelectorAll('.carousel-item');
+                let maxVisibility = 0;
+
+                items.forEach((item, index) => {
+                    const itemRect = item.getBoundingClientRect();
+                    const containerRect = carousel.getBoundingClientRect();
+
+                    // Calcular qué porcentaje del item está visible
+                    const itemLeft = itemRect.left - containerRect.left;
+                    const itemRight = itemRect.right - containerRect.left;
+                    const visibleWidth = Math.min(itemRight, containerRect.width) - Math.max(itemLeft, 0);
+                    const visibilityPercentage = visibleWidth / itemRect.width;
+
+                    // El elemento con mayor visibilidad es el activo
+                    if (visibilityPercentage > maxVisibility) {
+                        maxVisibility = visibilityPercentage;
+                        activeIndex = index;
+                    }
+                });
+            }
+
+            indicators.forEach((indicator, index) => {
+                indicator.classList.toggle('active', index === activeIndex);
+            });
+        }
+
+        // Función para detectar cambios de tamaño de ventana
+        function checkWindowResize() {
+            updateIndicators();
+        }
+
+        carousel.addEventListener('scroll', updateIndicators);
+        window.addEventListener('resize', checkWindowResize);
+
+        // Función mejorada para navegación por toque/swipe
+        let isDown = false;
+        let startX;
+        let scrollLeftStart;
+        let velocity = 0;
+        let lastX = 0;
+        let lastTime = 0;
+
+        carousel.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            isDown = true;
+            carousel.style.cursor = 'grabbing';
+            startX = e.pageX - carousel.offsetLeft;
+            scrollLeftStart = carousel.scrollLeft;
+            lastX = e.pageX;
+            lastTime = Date.now();
+            velocity = 0;
+        });
+
+        carousel.addEventListener('mouseleave', () => {
+            isDown = false;
+            carousel.style.cursor = 'grab';
+        });
+
+        carousel.addEventListener('mouseup', () => {
+            isDown = false;
+            carousel.style.cursor = 'grab';
+        });
+
+        carousel.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+
+            const currentTime = Date.now();
+            const deltaTime = currentTime - lastTime;
+            const deltaX = e.pageX - lastX;
+
+            if (deltaTime > 0) {
+                velocity = deltaX / deltaTime;
+            }
+
+            const x = e.pageX - carousel.offsetLeft;
+            const walk = (x - startX);
+            carousel.scrollLeft = scrollLeftStart - walk;
+
+            lastX = e.pageX;
+            lastTime = currentTime;
+        });
+
+        // Touch events mejorados para móviles
+        let touchStartX = 0;
+        let touchScrollStart = 0;
+
+        carousel.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].pageX;
+            touchScrollStart = carousel.scrollLeft;
+        }, { passive: true });
+
+        carousel.addEventListener('touchmove', (e) => {
+            if (!touchStartX) return;
+
+            const touchX = e.touches[0].pageX;
+            const diffX = touchStartX - touchX;
+
+            // Scroll lineal sin inercia adicional
+            carousel.scrollLeft = touchScrollStart + diffX;
+        }, { passive: true });
+
+        carousel.addEventListener('touchend', () => {
+            touchStartX = 0;
+            touchScrollStart = 0;
+        }, { passive: true });
+
+        // Inicializar indicadores al cargar y después de las animaciones
+        setTimeout(() => {
+            updateIndicators();
+        }, 100);
+
+        // Verificar nuevamente después de que terminen las animaciones de entrada
+        setTimeout(() => {
+            updateIndicators();
+        }, 1500);
+    </script>
+
+
+</body>
+
+</html>

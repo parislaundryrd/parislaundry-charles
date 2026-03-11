@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administración - Paris Laundry</title>
+  <link rel="icon" href="./img/Paris Laundry 1.png" type="image/png">
+  <link rel="stylesheet" href="./css/styles_admin.css">
+  <link rel="stylesheet" href="./css/styles_menu.css">
+  <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-firestore-compat.js"></script>
+  <script src="./js/app.js"></script>
+  <script src="./js/menu.js" defer></script>
+</head>
+
+<body>
+
+  <div class="MasterBox0" style="display: none;">
+
+    <laundry-menu></laundry-menu>
+
+    <div class="container_admin">
+      <div class="panelAdmin_tittle">
+        <h2>Administración de Servicios y Configuración</h2>
+      </div>
+
+      <div class="panelAdmin_body">
+
+
+
+
+        <div class="button-list">
+
+          <div id="grupo-left">
+            <button id="addServiceButton"><img src="./img/icon/mas1.png">Añadir Hamper o Servicio</button>
+            <button id="configurarITBISButton"><img src="./img/icon/ITBIS1.png">Configurar ITBIS</button>
+            <button id="empleadosButton"><img src="./img/icon/empleados1.png">Empleados</button>
+          </div>
+
+          <div>
+            <button id="historialButton"><img src="./img/icon/historial1.png">Historial</button>
+          </div>
+
+        </div>
+
+        <div class="divisor"></div> <!-- Divisor -->
+
+        <h2>Hampers</h2>
+        <div id="hamperList" class="sortable-list"></div>
+
+        <div class="divisor"></div> <!-- Divisor -->
+
+        <h2>Otros Servicios</h2>
+        <div id="otherServiceList" class="sortable-list"></div>
+
+        <div class="divisor"></div> <!-- Divisor -->
+
+
+
+
+        <div class="usuarios-box">
+
+          <div class="admin-section">
+            <h2>Usuarios Registrados</h2>
+            <table id="usersTable">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Correo</th>
+                  <th>Rol</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+
+          <div class="divisor" style="margin: 20px 0px;"></div> <!-- Divisor -->
+
+          <div class="admin-section">
+            <h2>Registrar Nuevo Usuario</h2>
+            <div class="form-group">
+              <label for="newEmail">Correo Electrónico</label>
+              <input type="email" id="newEmail" placeholder="correo@ejemplo.com">
+            </div>
+            <div class="form-group">
+              <label for="newPassword">Contraseña</label>
+              <input type="password" id="newPassword" placeholder="Mínimo 6 caracteres">
+            </div>
+            <div class="form-group">
+              <label for="userName">Nombre Completo</label>
+              <input type="text" id="userName" placeholder="Nombre del usuario">
+            </div>
+            <div class="form-group">
+              <label for="userRole">Rol</label>
+              <select id="userRole">
+                <option value="admin">Administrador</option>
+                <option value="employee">Empleado</option>
+              </select>
+            </div>
+            <button class="btn" id="registerBtn">Registrar Usuario</button>
+            <div id="registerMessage"></div>
+          </div>
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <div class="panelAdmin_down">
+        <p>© Paris Laundry RD - 2025</p>
+      </div>
+
+    </div>
+
+    <!-- Modal para agregar servicio -->
+    <div id="addServiceModal" class="modal">
+      <div class="modal-content">
+
+        <div class="modal_tittle">
+          <span class="close" id="closeAddModal">&times;</span>
+          <h2>Añadir Hamper o Servicio</h2>
+        </div>
+
+        <div class="modal_body">
+          <form id="addServiceForm">
+            <label for="serviceType">Tipo de Servicio:</label>
+            <select id="serviceTypeAdd">
+              <option value="" disabled selected>Selecciona un tipo</option>
+              <option value="hamper">Hamper</option>
+              <option value="otroservicio">Otro Servicio</option>
+            </select>
+            <div id="hamperFieldsAdd" class="serviceFields" style="display: none;">
+
+              <label for="nombre">Nombre:</label>
+              <input type="text" id="nombreAdd"><br>
+
+              <label for="precio">Precio:</label>
+              <input type="number" id="precioAdd"><br>
+
+              <label for="librasmin">Libras Mínimas:</label>
+              <input type="number" id="librasminAdd"><br>
+
+              <label for="librasmax">Libras Máximas:</label>
+              <input type="number" id="librasmaxAdd"><br>
+
+              <label for="preciolibras">Precio por Libra:</label>
+              <input type="number" id="preciolibrasAdd"><br>
+
+              <!-- En el modal de añadir servicio (dentro de hamperFieldsAdd) -->
+              <div class="box-icon">
+                <label for="iconAdd">Icono:</label>
+                <div class="icon-input-container">
+                  <input type="text" id="iconAdd" readonly style="display: none;">
+                  <div id="iconPreviewAdd" class="no-image">Sin imagen</div>
+                  <input type="file" id="iconFileAdd" accept="image/*" style="display: none;">
+                  <button type="button" onclick="document.getElementById('iconFileAdd').click()">Subir imagen</button>
+                </div>
+              </div>
+              <p>
+
+                <label for="consumo"><strong>Consumo del inventario:</strong></label>
+              <div id="consumoContainer">
+                <select id="consumoAdd">
+                  <option value="" disabled selected>Selecciona un producto</option>
+                </select>
+                <input type="number" id="cantidadConsumoAdd" min="1" placeholder="Cantidad de consumo">
+                <button type="button" id="addConsumoButton">Agregar Consumo</button>
+              </div>
+              <div id="consumoList"></div>
+            </div>
+
+            <!-- / -->
+
+            <div id="otherServiceFieldsAdd" class="serviceFields" style="display: none;">
+
+              <label for="nombreOtroServicio">Nombre:</label>
+              <input type="text" id="nombreOtroServicioAdd"><br>
+
+              <label for="precioOtroServicio">Precio:</label>
+              <input type="number" id="precioOtroServicioAdd"><br>
+
+              <!-- En el modal de añadir servicio (dentro de otherServiceFieldsAdd) -->
+              <div class="box-icon">
+                <label for="iconOtroServicioAdd">Icono:</label>
+                <div class="icon-input-container">
+                  <input type="text" id="iconOtroServicioAdd" readonly style="display: none;">
+                  <div id="iconPreviewOtroServicioAdd" class="no-image">Sin imagen</div>
+                  <input type="file" id="iconFileOtroServicioAdd" accept="image/*" style="display: none;">
+                  <button type="button" onclick="document.getElementById('iconFileOtroServicioAdd').click()">Subir
+                    imagen</button>
+                </div>
+              </div>
+              <p>
+
+                <label for="consumoOtroServicio"><strong>Consumo del inventario:</strong></label>
+              <div id="consumoContainerOtroServicio">
+                <select id="consumoOtroServicioAdd">
+                  <option value="" disabled selected>Selecciona un producto</option>
+                </select>
+                <input type="number" id="cantidadOtroServicioAdd" min="1" placeholder="Cantidad de consumo">
+                <button type="button" id="addConsumoOtroServicioButton">Agregar Consumo</button>
+              </div>
+              <div id="consumoListOtroServicio"></div>
+            </div>
+
+        </div>
+
+        <div class="modal_down">
+          <button type="submit">Añadir Hamper/Servicio</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para editar hamper -->
+    <div id="editHamperModal" class="modal">
+      <div class="modal-content">
+
+        <div class="modal_tittle">
+          <span class="close" id="closeEditHamperModal">&times;</span>
+          <h2>Editar Hamper</h2>
+        </div>
+
+        <div class="modal_body">
+          <form id="editHamperForm">
+            <input type="hidden" id="hamperId">
+
+            <label for="nombre">Nombre:</label>
+            <input type="text" id="nombreHamper"><br>
+
+            <label for="precio">Precio:</label>
+            <input type="number" id="precioHamper"><br>
+
+            <label for="librasmin">Libras Mínimas:</label>
+            <input type="number" id="librasminHamper"><br>
+
+            <label for="librasmax">Libras Máximas:</label>
+            <input type="number" id="librasmaxHamper"><br>
+
+            <label for="preciolibras">Precio por Libra:</label>
+            <input type="number" id="preciolibrasHamper"><br>
+
+            <!-- En el modal de editar hamper -->
+            <div class="box-icon">
+              <label for="iconHamper">Icono:</label>
+              <div class="icon-input-container">
+                <input type="text" id="iconHamper" readonly style="display: none;">
+                <div id="iconPreviewHamper" class="no-image">Sin imagen</div>
+                <input type="file" id="iconFileHamper" accept="image/*" style="display: none;">
+                <button type="button" onclick="document.getElementById('iconFileHamper').click()">Subir imagen</button>
+              </div>
+            </div>
+            <p>
+
+              <label for="consumo"><strong>Consumo del inventario:</strong></label>
+
+            <div id="consumoContainerHamper">
+              <select id="consumoHamper">
+                <option value="" disabled selected>Selecciona un producto</option>
+              </select>
+              <input type="number" id="cantidadHamper" min="1" placeholder="Cantidad de consumo">
+              <button type="button" id="addConsumoHamperButton">Agregar Consumo</button>
+            </div>
+
+            <div id="consumoListHamper"></div>
+        </div>
+
+        <div class="modal_down">
+          <button type="button" id="deleteHamperButton">Eliminar Hamper</button>
+          <button type="submit">Guardar Cambios</button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Modal para editar otros servicios -->
+    <div id="editOtherServiceModal" class="modal">
+      <div class="modal-content">
+
+        <div class="modal_tittle">
+          <span class="close" id="closeEditOtherServiceModal">&times;</span>
+          <h2>Editar Servicio</h2>
+        </div>
+
+        <div class="modal_body">
+          <form id="editOtherServiceForm">
+            <input type="hidden" id="otherServiceId">
+
+            <label for="nombreOtroServicio">Nombre:</label>
+            <input type="text" id="nombreOtroServicioEdit"><br>
+
+            <label for="precioOtroServicio">Precio:</label>
+            <input type="number" id="precioOtroServicioEdit"><br>
+
+            <!-- En el modal de editar otro servicio -->
+            <div class="box-icon">
+              <label for="iconOtroServicioEdit">Icono:</label>
+              <div class="icon-input-container">
+                <input type="text" id="iconOtroServicioEdit" readonly style="display: none;">
+                <div id="iconPreviewOtroServicioEdit" class="no-image">Sin imagen</div>
+                <input type="file" id="iconFileOtroServicioEdit" accept="image/*" style="display: none;">
+                <button type="button" onclick="document.getElementById('iconFileOtroServicioEdit').click()">Subir
+                  imagen</button>
+              </div>
+            </div>
+            <p>
+
+              <label for="consumoOtroServicio"><strong>Consumo del inventario:</strong></label>
+
+            <div id="consumoContainerOtroServicio">
+              <select id="consumoOtroServicioEdit">
+                <option value="" disabled selected>Selecciona un producto</option>
+              </select>
+              <input type="number" id="cantidadOtroServicioEdit" min="1" placeholder="Cantidad de consumo">
+              <button type="button" id="addConsumoOtroServicioEditButton">Agregar Consumo</button>
+            </div>
+            <div id="consumoListOtroServicioEdit"></div>
+        </div>
+
+        <div class="modal_down">
+          <button type="button" id="deleteOtherServiceButton">Eliminar Servicio</button>
+          <button type="submit">Guardar Cambios</button>
+          </form>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- Modal para configurar ITBIS -->
+    <div id="configurarITBISModal" class="modal">
+      <div class="modal-content">
+        <div class="modal_tittle">
+          <span class="close" id="closeConfigurarITBISModal">&times;</span>
+          <h2>Configurar ITBIS</h2>
+        </div>
+        <div class="modal_body">
+          <form id="configurarITBISForm">
+            <label for="asumir"><strong>Asumir ITBIS Por:</strong></label><br>
+            <select id="asumir">
+              <option value="empresa">Empresa</option>
+              <option value="cliente">Cliente</option>
+              <option value="desactivado">Desactivado</option>
+            </select>
+            <p>
+              <label for="cantidadPorciento"><strong>Cantidad Porciento (%):</strong></label><br>
+              <input type="number" id="cantidadPorciento" placeholder="Ingrese el porcentaje" required>
+            </p>
+            <h4>Nota:</h4>
+            <p>El Impuesto sobre Transferencias de Bienes Industrializados y Servicios (ITBIS) es un tributo obligatorio
+              establecido por el gobierno, que debe ser aplicado por las empresas en la venta de bienes y servicios. En
+              esta configuración, puedes definir cómo manejar el ITBIS en tu negocio:
+            <p>
+
+            <p><strong>Asumido por la empresa:</strong> El ITBIS está incluido en el precio de los productos o
+              servicios, pero se mostrará desglosado en la factura para mayor transparencia.</p>
+
+            <p><strong>Asumido por el cliente:</strong> El ITBIS se aplicará de manera separada y será cobrado
+              adicionalmente al cliente.</p>
+
+            <p><strong>Desactivado:</strong> Solo debe usarse si tu empresa está exenta del pago de ITBIS según la
+              normativa vigente.</p>
+
+            <p>El porcentaje establecido actualmente por la ley es del 18%, pero puedes modificarlo en caso de que haya
+              cambios en la legislación fiscal.</p>
+
+          </form>
+        </div>
+        <div class="modal_down">
+          <button id="saveITBISChangesButton">Guardar Cambios</button>
+        </div>
+      </div>
+    </div>
+    <!-- Modal para configurar ITBIS FIN -->
+
+
+
+
+
+    <!-- Modal para administrar empleados -->
+    <div id="empleadosModal" class="modal">
+      <div class="modal-content">
+        <div class="modal_tittle">
+          <span class="close" id="closeEmpleadosModal">&times;</span>
+          <h2>Gestión de Empleados</h2>
+        </div>
+
+        <div class="modal_body">
+
+          <div class="cube_empleados">
+            <input type="text" id="nuevoEmpleado" placeholder="Nombre del nuevo empleado">
+            <button id="addEmpleadoButton">Añadir Empleado</button>
+          </div>
+
+          <ul id="empleadosList"></ul>
+
+
+        </div>
+
+        <div class="modal_down">
+          <button id="saveChangesButton">Guardar Cambios</button>
+        </div>
+
+      </div>
+    </div>
+    <!-- Modal para administrar empleados FIN -->
+
+
+
+
+
+    <!-- Modal para mostrar el historial de cambios -->
+    <div id="historialModal" class="modal">
+      <div id="modal-content-historial" class="modal-content">
+        <div class="modal_tittle">
+          <span class="close" id="closeHistorialModal">&times;</span>
+          <h2>Historial de Cambios</h2>
+        </div>
+        <div id="modal-body-historial" class="modal_body">
+          <ul id="historialList"></ul>
+          <button id="loadMoreButton" style="display: none;">Cargar más</button>
+          <p id="noMoreRecordsMessage" style="display: none; text-align: center; color: #888; margin-top: 10px;">No hay
+            más registros</p>
+        </div>
+      </div>
+    </div>
+    <!-- Modal para mostrar el historial de cambios FIN -->
+
+
+
+
+  </div>
+
+  <script>
+
+
+  </script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // Registrar nuevo usuario
+      document.getElementById('registerBtn').addEventListener('click', registerUser);
+
+      // Cargar lista de usuarios
+      loadUsers();
+    });
+
+    function registerUser() {
+      const email = document.getElementById('newEmail').value.trim();
+      const password = document.getElementById('newPassword').value;
+      const name = document.getElementById('userName').value.trim();
+      const role = document.getElementById('userRole').value;
+      const messageDiv = document.getElementById('registerMessage');
+
+      if (!email || !password || !name) {
+        messageDiv.textContent = 'Por favor completa todos los campos';
+        messageDiv.style.color = 'red';
+        return;
+      }
+
+      if (password.length < 6) {
+        messageDiv.textContent = 'La contraseña debe tener al menos 6 caracteres';
+        messageDiv.style.color = 'red';
+        return;
+      }
+
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+
+          return db.collection('users').doc(user.uid).set({
+            email: email,
+            role: role,
+            name: name,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        })
+        .then(() => {
+          messageDiv.textContent = 'Usuario registrado exitosamente';
+          messageDiv.style.color = 'green';
+
+          // Limpiar formulario
+          document.getElementById('newEmail').value = '';
+          document.getElementById('newPassword').value = '';
+          document.getElementById('userName').value = '';
+
+          // Recargar lista de usuarios
+          loadUsers();
+        })
+        .catch((error) => {
+          console.error("Error al registrar:", error);
+          messageDiv.textContent = 'Error: ' + error.message;
+          messageDiv.style.color = 'red';
+        });
+    }
+
+    function loadUsers() {
+      const tbody = document.querySelector('#usersTable tbody');
+      tbody.innerHTML = '';
+
+      db.collection('users').orderBy('createdAt', 'desc').get()
+        .then((querySnapshot) => {
+          querySnapshot.forEach((doc) => {
+            const user = doc.data();
+            const row = document.createElement('tr');
+
+            row.innerHTML = `
+                            <td>${user.name || '-'}</td>
+                            <td>${user.email}</td>
+                            <td>${user.role === 'admin' ? 'Administrador' : 'Empleado'}</td>
+                            <td>
+                                <button onclick="resetPassword('${doc.id}', '${user.email}')">Resetear Contraseña</button>
+                                ${auth.currentUser.uid !== doc.id ?
+                `<button onclick="deleteUser('${doc.id}')">Eliminar</button>` :
+                ''}
+                            </td>
+                        `;
+
+            tbody.appendChild(row);
+          });
+        })
+        .catch((error) => {
+          console.error("Error al cargar usuarios:", error);
+        });
+    }
+
+    function resetPassword(uid, email) {
+      if (confirm(`¿Resetear contraseña para ${email}? Se enviará un correo para cambiar la contraseña.`)) {
+        auth.sendPasswordResetEmail(email)
+          .then(() => {
+            alert(`Se ha enviado un correo a ${email} para resetear la contraseña`);
+          })
+          .catch((error) => {
+            console.error("Error al resetear contraseña:", error);
+            alert('Error: ' + error.message);
+          });
+      }
+    }
+
+    function deleteUser(uid) {
+      if (confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')) {
+        // Eliminar de Firestore
+        db.collection('users').doc(uid).delete()
+          .then(() => {
+            // Eliminar de Authentication (requiere función de backend)
+            alert('Usuario eliminado de la base de datos. Nota: La cuenta de autenticación aún existe.');
+            loadUsers();
+          })
+          .catch((error) => {
+            console.error("Error al eliminar usuario:", error);
+            alert('Error: ' + error.message);
+          });
+      }
+    }
+  </script>
+
+
+
+  <script>
+    // Función para detectar si es un dispositivo táctil
+    function isTouchDevice() {
+      return (('ontouchstart' in window) ||
+        (navigator.maxTouchPoints > 0) ||
+        (navigator.msMaxTouchPoints > 0));
+    }
+
+    // Aplicar clase CSS si es dispositivo táctil
+    if (isTouchDevice()) {
+      document.documentElement.classList.add('touch-device');
+    }
+
+
+    const hamperList = document.getElementById("hamperList");
+    const otherServiceList = document.getElementById("otherServiceList");
+    const addServiceModal = document.getElementById("addServiceModal");
+    const editHamperModal = document.getElementById("editHamperModal");
+    const editOtherServiceModal = document.getElementById("editOtherServiceModal");
+
+    // Función para manejar la selección de archivos
+    function setupFileInput(inputElement, textElement, previewElement) {
+      inputElement.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        if (file) {
+          // Limitar tamaño a 1MB
+          if (file.size > 1024 * 1024) {
+            alert('La imagen debe pesar menos de 1MB');
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = function (event) {
+            const base64String = event.target.result;
+            textElement.value = base64String;
+            previewElement.innerHTML = `<img src="${base64String}" class="image-preview" style="height: 64px;border-radius: 10px;">`;
+            previewElement.classList.remove('no-image');
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    // Configurar todos los inputs de archivo al cargar la página
+    document.addEventListener('DOMContentLoaded', function () {
+      // Modal de añadir hamper
+      setupFileInput(
+        document.getElementById('iconFileAdd'),
+        document.getElementById('iconAdd'),
+        document.getElementById('iconPreviewAdd')
+      );
+
+      // Modal de añadir otro servicio
+      setupFileInput(
+        document.getElementById('iconFileOtroServicioAdd'),
+        document.getElementById('iconOtroServicioAdd'),
+        document.getElementById('iconPreviewOtroServicioAdd')
+      );
+
+      // Modal de editar hamper
+      setupFileInput(
+        document.getElementById('iconFileHamper'),
+        document.getElementById('iconHamper'),
+        document.getElementById('iconPreviewHamper')
+      );
+
+      // Modal de editar otro servicio
+      setupFileInput(
+        document.getElementById('iconFileOtroServicioEdit'),
+        document.getElementById('iconOtroServicioEdit'),
+        document.getElementById('iconPreviewOtroServicioEdit')
+      );
+    });
+
+    /// Cargar Hampers
+    const loadHampers = () => {
+      db.collection("servicio")
+        .where("tipo", "==", "hamper")
+        .get()
+        .then((snapshot) => {
+          const hampers = [];
+          snapshot.forEach((doc) => {
+            hampers.push({ id: doc.id, ...doc.data() });
+          });
+
+          hampers.sort((a, b) => a.OrdenNumHamper - b.OrdenNumHamper);
+
+          hamperList.innerHTML = "";
+          hampers.forEach((data) => {
+            const hamperDiv = document.createElement("div");
+            hamperDiv.setAttribute("data-id", data.id);
+            hamperDiv.innerHTML = `
+          <h3>${data.nombre}</h3>
+          <img src="${data.icon}" alt="${data.nombre}">
+          <p>Precio: <strong>RD$${data.precio}</strong></p>
+          <p>Libras Mínimas: <strong>${data.librasmin}</strong></p>
+          <p>Libras Máximas: <strong>${data.librasmax}</strong></p>
+          <p>Precio por Libra: <strong>RD$${data.preciolibras}</strong></p>
+          <button onclick="editHamper('${data.id}')">Editar</button>
+        `;
+            hamperList.appendChild(hamperDiv);
+          });
+
+          // Inicializar SortableJS
+          new Sortable(hamperList, {
+            animation: 150,
+            onEnd: (evt) => {
+              updateHamperOrder();
+            },
+            supportPointer: false,
+            touchStartThreshold: 0,
+            forceFallback: true,
+            fallbackTolerance: 0,
+            draggable: "> div",
+            delay: isTouchDevice() ? 10000 : 0,
+            delayOnTouchOnly: true
+          });
+        })
+        .catch((error) => {
+          console.error("Error al cargar hampers: ", error);
+        });
+    };
+
+    // Variables para almacenar los valores originales de "Otro Servicio"
+    let originalOtroServicio = {};
+
+    // Función para formatear el consumo de inventario
+    const formatConsumo = (consumos) => {
+      return consumos.map(consumo => `ID: ${consumo.id}, Cantidad: ${consumo.cantidad}`).join(", ");
+    };
+
+    // Cargar Otros Servicios
+    const loadOtherServices = () => {
+      db.collection("servicio")
+        .where("tipo", "==", "otroservicio")
+        .get()
+        .then((snapshot) => {
+          const otherServices = [];
+          snapshot.forEach((doc) => {
+            otherServices.push({ id: doc.id, ...doc.data() });
+          });
+
+          otherServices.sort((a, b) => a.OrdenNumServicio - b.OrdenNumServicio);
+
+          otherServiceList.innerHTML = "";
+          otherServices.forEach((data) => {
+            const serviceDiv = document.createElement("div");
+            serviceDiv.setAttribute("data-id", data.id);
+            serviceDiv.innerHTML = `
+          <h3>${data.nombre}</h3>
+          <img src="${data.icon}" alt="${data.nombre}">
+          <p>Precio: <strong>RD$${data.precio}</strong></p>
+          <button onclick="editOtherService('${data.id}')">Editar</button>
+        `;
+            otherServiceList.appendChild(serviceDiv);
+          });
+
+          // Inicializar SortableJS
+          new Sortable(otherServiceList, {
+            animation: 150,
+            onEnd: (evt) => {
+              updateOtherServiceOrder();
+            },
+            supportPointer: false,
+            touchStartThreshold: 0,
+            forceFallback: true,
+            fallbackTolerance: 0,
+            draggable: "> div",
+            delay: isTouchDevice() ? 10000 : 0,
+            delayOnTouchOnly: true
+          });
+        })
+        .catch((error) => {
+          console.error("Error al cargar otros servicios: ", error);
+        });
+    };
+
+    // Función para actualizar el orden de los Hampers en Firestore
+    const updateHamperOrder = () => {
+      const hampers = Array.from(hamperList.children);
+      hampers.forEach((hamper, index) => {
+        const id = hamper.getAttribute("data-id");
+        db.collection("servicio").doc(id).update({
+          OrdenNumHamper: index + 1,
+        }).catch((error) => {
+          console.error("Error al actualizar el orden del hamper: ", error);
+        });
+      });
+    };
+
+    // Función para actualizar el orden de los Otros Servicios en Firestore
+    const updateOtherServiceOrder = () => {
+      const otherServices = Array.from(otherServiceList.children);
+      otherServices.forEach((service, index) => {
+        const id = service.getAttribute("data-id");
+        db.collection("servicio").doc(id).update({
+          OrdenNumServicio: index + 1,
+        }).catch((error) => {
+          console.error("Error al actualizar el orden del otro servicio: ", error);
+        });
+      });
+    };
+
+    // Cargar Productos para el Select de Consumo
+    const loadProducts = (selectElement) => {
+      db.collection("productos").get().then((snapshot) => {
+        selectElement.innerHTML = "";
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.disabled = true;
+        defaultOption.selected = true;
+        defaultOption.textContent = "Selecciona un producto";
+        selectElement.appendChild(defaultOption);
+        snapshot.forEach((doc) => {
+          const product = doc.data();
+          const option = document.createElement("option");
+          option.value = product.id;
+          option.textContent = `${product.nombre} (ID: ${product.id})`;
+          selectElement.appendChild(option);
+        });
+      });
+    };
+
+    // Arreglo para almacenar los consumos seleccionados
+    let consumosSeleccionados = [];
+
+    // Función para actualizar la lista de consumos
+    const updateConsumoList = () => {
+      const consumoList = document.getElementById("consumoList");
+      consumoList.innerHTML = "";
+      consumosSeleccionados.forEach((consumo) => {
+        const consumoDiv = document.createElement("div");
+        consumoDiv.innerHTML = `ID: <strong>${consumo.id}</strong>, Cantidad: <strong>${consumo.cantidad}</strong>`;
+
+        const removeButton = document.createElement("button");
+        removeButton.textContent = "Eliminar";
+        removeButton.onclick = () => {
+          consumosSeleccionados = consumosSeleccionados.filter(c => c.id !== consumo.id);
+          updateConsumoList();
+        };
+
+        consumoDiv.appendChild(removeButton);
+        consumoList.appendChild(consumoDiv);
+      });
+    };
+
+    // Función para actualizar la lista de consumos en otro servicio
+    const updateConsumoListOtroServicio = () => {
+      const consumoListOtroServicio = document.getElementById("consumoListOtroServicio");
+      consumoListOtroServicio.innerHTML = "";
+      consumosSeleccionados.forEach((consumo) => {
+        const consumoDiv = document.createElement("div");
+        consumoDiv.innerHTML = `ID: <strong>${consumo.id}</strong>, Cantidad: <strong>${consumo.cantidad}</strong>`;
+
+        const removeButton = document.createElement("button");
+        removeButton.textContent = "Eliminar";
+        removeButton.onclick = () => {
+          consumosSeleccionados = consumosSeleccionados.filter(c => c.id !== consumo.id);
+          updateConsumoListOtroServicio();
+        };
+
+        consumoDiv.appendChild(removeButton);
+        consumoListOtroServicio.appendChild(consumoDiv);
+      });
+    };
+
+    // Función para actualizar la lista de consumos en editar
+    const updateEditConsumoList = (consumos, listElement) => {
+      listElement.innerHTML = "";
+      consumos.forEach((consumo) => {
+        const consumoDiv = document.createElement("div");
+        consumoDiv.innerHTML = `ID: <strong>${consumo.id}</strong>, Cantidad: <strong>${consumo.cantidad}</strong>`;
+
+        const removeButton = document.createElement("button");
+        removeButton.textContent = "Eliminar";
+        removeButton.onclick = () => {
+          consumosSeleccionados = consumosSeleccionados.filter(c => c.id !== consumo.id);
+          updateEditConsumoList(consumosSeleccionados, listElement);
+        };
+
+        consumoDiv.appendChild(removeButton);
+        listElement.appendChild(consumoDiv);
+      });
+    };
+
+    // Función para añadir un "hamper"
+    const addHamper = async (nombre, precio, librasmin, librasmax, preciolibras, icon, consumo) => {
+      try {
+        const docRef = await db.collection("servicio").add({
+          nombre: nombre,
+          precio: precio,
+          librasmin: librasmin,
+          librasmax: librasmax,
+          preciolibras: preciolibras,
+          icon: icon,
+          consumo: consumo,
+          tipo: "hamper"
+        });
+
+        // Registrar en el historial
+        await db.collection("historialAdmin").add({
+          accion: "Hamper Añadido",
+          nombre: nombre,
+          precio: precio,
+          librasmin: librasmin,
+          librasmax: librasmax,
+          preciolibras: preciolibras,
+          icon: "Imagen en base64", // No almacenar toda la imagen en el historial
+          "consumo de inventario": formatConsumo(consumo),
+          fecha: new Date()
+        });
+
+        return docRef.id;
+      } catch (error) {
+        console.error("Error al añadir el hamper: ", error);
+        throw error;
+      }
+    };
+
+    // Función para añadir un "Otro Servicio"
+    const addOtherService = async (nombre, precio, icon, consumo) => {
+      try {
+        const docRef = await db.collection("servicio").add({
+          nombre: nombre,
+          precio: precio,
+          icon: icon,
+          consumo: consumo,
+          tipo: "otroservicio"
+        });
+
+        // Registrar en el historial
+        await db.collection("historialAdmin").add({
+          accion: "Otro Servicio Añadido",
+          nombre: nombre,
+          precio: precio,
+          icon: "Imagen en base64", // No almacenar toda la imagen en el historial
+          "consumo de inventario": formatConsumo(consumo),
+          fecha: new Date()
+        });
+
+        return docRef.id;
+      } catch (error) {
+        console.error("Error al añadir Otro Servicio: ", error);
+        throw error;
+      }
+    };
+
+    // Abrir modal para agregar servicio
+    document.getElementById("addServiceButton").addEventListener("click", () => {
+      addServiceModal.style.display = "block";
+      loadProducts(document.getElementById("consumoAdd"));
+      loadProducts(document.getElementById("consumoOtroServicioAdd"));
+    });
+
+    // Cerrar modal de agregar servicio
+    document.getElementById("closeAddModal").onclick = function () {
+      addServiceModal.style.display = "none";
+    };
+
+    // Mostrar campos según el tipo de servicio seleccionado
+    document.getElementById("serviceTypeAdd").addEventListener("change", function () {
+      const selectedType = this.value;
+
+      // Reiniciar los campos de entrada
+      document.getElementById("nombreAdd").value = "";
+      document.getElementById("precioAdd").value = "";
+      document.getElementById("librasminAdd").value = "";
+      document.getElementById("librasmaxAdd").value = "";
+      document.getElementById("preciolibrasAdd").value = "";
+      document.getElementById("iconAdd").value = "";
+      document.getElementById("iconFileAdd").value = "";
+
+      // Reiniciar los campos de consumo
+      consumosSeleccionados = [];
+      updateConsumoList();
+      updateConsumoListOtroServicio();
+
+      if (selectedType === "hamper") {
+        document.getElementById("hamperFieldsAdd").style.display = "block";
+        document.getElementById("otherServiceFieldsAdd").style.display = "none";
+      } else if (selectedType === "otroservicio") {
+        document.getElementById("hamperFieldsAdd").style.display = "none";
+        document.getElementById("otherServiceFieldsAdd").style.display = "block";
+      }
+    });
+
+    // Función para agregar consumo en agregar servicio
+    document.getElementById("addConsumoButton").addEventListener("click", () => {
+      const selectedValue = document.getElementById("consumoAdd").value;
+      const cantidad = parseInt(document.getElementById("cantidadConsumoAdd").value);
+      if (selectedValue && cantidad > 0 && !consumosSeleccionados.some(c => c.id === selectedValue)) {
+        consumosSeleccionados.push({ id: selectedValue, cantidad: cantidad });
+        updateConsumoList();
+
+        // Reiniciar el select y el input de cantidad
+        document.getElementById("consumoAdd").value = "";
+        document.getElementById("cantidadConsumoAdd").value = "";
+        document.getElementById("consumoAdd").selectedIndex = 0;
+      } else {
+        alert("Consumo ya agregado, no seleccionado o cantidad inválida.");
+      }
+    });
+
+    // Función para agregar consumo en agregar otro servicio
+    document.getElementById("addConsumoOtroServicioButton").addEventListener("click", () => {
+      const selectedValue = document.getElementById("consumoOtroServicioAdd").value;
+      const cantidad = parseInt(document.getElementById("cantidadOtroServicioAdd").value);
+      if (selectedValue && cantidad > 0 && !consumosSeleccionados.some(c => c.id === selectedValue)) {
+        consumosSeleccionados.push({ id: selectedValue, cantidad: cantidad });
+        updateConsumoListOtroServicio();
+
+        // Reiniciar el select y el input de cantidad
+        document.getElementById("consumoOtroServicioAdd").value = "";
+        document.getElementById("cantidadOtroServicioAdd").value = "";
+        document.getElementById("consumoOtroServicioAdd").selectedIndex = 0;
+      } else {
+        alert("Consumo ya agregado, no seleccionado o cantidad inválida.");
+      }
+    });
+
+    // Agregar nuevo servicio
+    document.getElementById("addServiceForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const serviceType = document.getElementById("serviceTypeAdd").value;
+      const nombre = serviceType === "hamper" ? document.getElementById("nombreAdd").value : document.getElementById("nombreOtroServicioAdd").value;
+      const precio = serviceType === "hamper" ? parseFloat(document.getElementById("precioAdd").value) : parseFloat(document.getElementById("precioOtroServicioAdd").value);
+      const librasmin = serviceType === "hamper" ? parseInt(document.getElementById("librasminAdd").value) : null;
+      const librasmax = serviceType === "hamper" ? parseInt(document.getElementById("librasmaxAdd").value) : null;
+      const preciolibras = serviceType === "hamper" ? parseFloat(document.getElementById("preciolibrasAdd").value) : null;
+      const icon = serviceType === "hamper" ? document.getElementById("iconAdd").value : document.getElementById("iconOtroServicioAdd").value;
+      const consumo = consumosSeleccionados;
+
+      if (nombre && precio) {
+        try {
+          if (serviceType === "hamper") {
+            await addHamper(nombre, precio, librasmin, librasmax, preciolibras, icon, consumo);
+          } else {
+            await addOtherService(nombre, precio, icon, consumo);
+          }
+          alert("Servicio añadido correctamente");
+          loadHampers();
+          loadOtherServices();
+          addServiceModal.style.display = "none";
+        } catch (error) {
+          console.error("Error al añadir el servicio: ", error);
+          alert("Hubo un error al añadir el servicio. Por favor, intenta de nuevo.");
+        }
+      } else {
+        alert("Por favor, complete los campos obligatorios: Nombre y Precio.");
+      }
+    });
+
+    // Editar Hamper
+    const editHamper = (id) => {
+      db.collection("servicio").doc(id).get().then((doc) => {
+        const data = doc.data();
+        document.getElementById("hamperId").value = id;
+        document.getElementById("nombreHamper").value = data.nombre;
+        document.getElementById("precioHamper").value = data.precio;
+        document.getElementById("librasminHamper").value = data.librasmin;
+        document.getElementById("librasmaxHamper").value = data.librasmax;
+        document.getElementById("preciolibrasHamper").value = data.preciolibras;
+        document.getElementById("iconHamper").value = data.icon;
+        document.getElementById("iconPreviewHamper").innerHTML = data.icon
+          ? `<img src="${data.icon}" class="image-preview" style="height: 64px;border-radius: 10px;">`
+          : '<div class="no-image">Sin imagen</div>';
+
+        // Cargar consumos existentes
+        consumosSeleccionados = data.consumo || [];
+        updateEditConsumoList(consumosSeleccionados, document.getElementById("consumoListHamper"));
+
+        loadProducts(document.getElementById("consumoHamper"));
+
+        editHamperModal.style.display = "block";
+      });
+    };
+
+    // Cerrar modal de editar hamper
+    document.getElementById("closeEditHamperModal").onclick = function () {
+      editHamperModal.style.display = "none";
+    };
+
+    // Función para agregar consumo en editar hamper
+    document.getElementById("addConsumoHamperButton").addEventListener("click", () => {
+      const selectedValue = document.getElementById("consumoHamper").value;
+      const cantidad = parseInt(document.getElementById("cantidadHamper").value);
+      if (selectedValue && cantidad > 0 && !consumosSeleccionados.some(c => c.id === selectedValue)) {
+        consumosSeleccionados.push({ id: selectedValue, cantidad: cantidad });
+        updateEditConsumoList(consumosSeleccionados, document.getElementById("consumoListHamper"));
+
+        // Reiniciar el select y el input de cantidad
+        document.getElementById("consumoHamper").value = "";
+        document.getElementById("cantidadHamper").value = "";
+        document.getElementById("consumoHamper").selectedIndex = 0;
+      } else {
+        alert("Consumo ya agregado, no seleccionado o cantidad inválida.");
+      }
+    });
+
+    // Función para eliminar un "hamper"
+    const deleteHamper = async (id) => {
+      try {
+        const doc = await db.collection("servicio").doc(id).get();
+        const data = doc.data();
+
+        // Formatear el consumo de inventario
+        const consumoFormateado = formatConsumo(data.consumo || []);
+
+        // Eliminar el servicio
+        await db.collection("servicio").doc(id).delete();
+
+        // Registrar en el historial
+        await db.collection("historialAdmin").add({
+          accion: "Hamper Eliminado",
+          nombre: data.nombre,
+          precio: data.precio,
+          "Libras Mínimas": data.librasmin,
+          "Libras Máximas": data.librasmax,
+          "Precio por Libra": data.preciolibras,
+          "consumo de inventario": consumoFormateado,
+          fecha: firebase.firestore.Timestamp.now()
+        });
+
+        alert("Hamper eliminado correctamente");
+        loadHampers();
+        document.getElementById("editHamperModal").style.display = "none";
+      } catch (error) {
+        console.error("Error al eliminar el hamper: ", error);
+        alert("Hubo un error al eliminar el hamper. Por favor, intenta de nuevo.");
+      }
+    };
+
+    // Eliminar hamper
+    document.getElementById("deleteHamperButton").addEventListener("click", () => {
+      const id = document.getElementById("hamperId").value;
+      if (confirm("¿Está seguro de que desea eliminar este hamper?")) {
+        deleteHamper(id);
+      }
+    });
+
+    // Guardar cambios en el hamper
+    document.getElementById("editHamperForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const id = document.getElementById("hamperId").value;
+      const nombre = document.getElementById("nombreHamper").value;
+      const precio = parseFloat(document.getElementById("precioHamper").value);
+      const librasmin = parseInt(document.getElementById("librasminHamper").value);
+      const librasmax = parseInt(document.getElementById("librasmaxHamper").value);
+      const preciolibras = parseFloat(document.getElementById("preciolibrasHamper").value);
+      const icon = document.getElementById("iconHamper").value;
+      const consumo = consumosSeleccionados;
+
+      try {
+        // Obtener los datos originales del hamper antes de la actualización
+        const doc = await db.collection("servicio").doc(id).get();
+        const originalData = doc.data();
+
+        // Identificar cambios
+        const cambios = [];
+        if (nombre !== originalData.nombre) {
+          cambios.push(`Nombre: de '${originalData.nombre}' a '${nombre}'`);
+        }
+        if (precio !== originalData.precio) {
+          cambios.push(`Precio: de '${originalData.precio}' a '${precio}'`);
+        }
+        if (librasmin !== originalData.librasmin) {
+          cambios.push(`Libras Mínimas: de '${originalData.librasmin}' a '${librasmin}'`);
+        }
+        if (librasmax !== originalData.librasmax) {
+          cambios.push(`Libras Máximas: de '${originalData.librasmax}' a '${librasmax}'`);
+        }
+        if (preciolibras !== originalData.preciolibras) {
+          cambios.push(`Precio por Libra: de '${originalData.preciolibras}' a '${preciolibras}'`);
+        }
+
+        // Formatear el consumo de inventario
+        const consumoFormateadoOriginal = formatConsumo(originalData.consumo || []);
+        const consumoFormateadoNuevo = formatConsumo(consumo || []);
+        if (JSON.stringify(consumo) !== JSON.stringify(originalData.consumo)) {
+          cambios.push(`Consumo de inventario: de '${consumoFormateadoOriginal}' a '${consumoFormateadoNuevo}'`);
+        }
+
+        // Actualizar el servicio en Firestore
+        await db.collection("servicio").doc(id).update({
+          nombre: nombre,
+          precio: precio,
+          librasmin: librasmin,
+          librasmax: librasmax,
+          preciolibras: preciolibras,
+          icon: icon,
+          consumo: consumo
+        });
+
+        // Registrar en el historial
+        await db.collection("historialAdmin").add({
+          accion: "Hamper Actualizado",
+          nombre: nombre,
+          cambio: cambios.join(", "),
+          fecha: firebase.firestore.Timestamp.now()
+        });
+
+        alert("Hamper actualizado correctamente");
+        editHamperModal.style.display = "none";
+        loadHampers();
+      } catch (error) {
+        console.error("Error al actualizar el hamper: ", error);
+        alert("Hubo un error al actualizar el hamper. Por favor, intenta de nuevo.");
+      }
+    });
+
+    // Editar Otro Servicio
+    const editOtherService = (id) => {
+      db.collection("servicio").doc(id).get().then((doc) => {
+        if (doc.exists) {
+          const data = doc.data();
+          originalOtroServicio = { ...data };
+          consumosSeleccionados = [...data.consumo];
+
+          document.getElementById("otherServiceId").value = id;
+          document.getElementById("nombreOtroServicioEdit").value = data.nombre;
+          document.getElementById("precioOtroServicioEdit").value = data.precio;
+          document.getElementById("iconOtroServicioEdit").value = data.icon;
+          document.getElementById("iconPreviewOtroServicioEdit").innerHTML = data.icon
+            ? `<img src="${data.icon}" class="image-preview" style="height: 64px;border-radius: 10px;">`
+            : '<div class="no-image">Sin imagen</div>';
+
+          updateEditConsumoList(consumosSeleccionados, document.getElementById("consumoListOtroServicioEdit"));
+
+          loadProducts(document.getElementById("consumoOtroServicioEdit"));
+
+          editOtherServiceModal.style.display = "block";
+        } else {
+          console.error("El servicio no existe.");
+        }
+      }).catch((error) => {
+        console.error("Error al cargar el servicio: ", error);
+      });
+    };
+
+    // Eliminar otro servicio
+    document.getElementById("deleteOtherServiceButton").addEventListener("click", async () => {
+      const otherServiceId = document.getElementById("otherServiceId").value;
+
+      if (confirm("¿Está seguro de que desea eliminar este servicio?")) {
+        try {
+          const servicio = await db.collection("servicio").doc(otherServiceId).get();
+          const servicioData = servicio.data();
+
+          const consumoFormateado = servicioData.consumo
+            .map(consumo => `ID: ${consumo.id}, Cantidad: ${consumo.cantidad}`)
+            .join(", ");
+
+          await db.collection("servicio").doc(otherServiceId).delete();
+
+          await db.collection("historialAdmin").add({
+            accion: "Otro Servicio Eliminado",
+            nombre: servicioData.nombre,
+            "consumo de inventario": consumoFormateado,
+            precio: servicioData.precio,
+            fecha: new Date()
+          });
+
+          alert("Servicio eliminado correctamente");
+          editOtherServiceModal.style.display = "none";
+          loadOtherServices();
+        } catch (error) {
+          console.error("Error al eliminar el servicio: ", error);
+        }
+      }
+    });
+
+    // Cerrar modal de editar otro servicio
+    document.getElementById("closeEditOtherServiceModal").onclick = function () {
+      editOtherServiceModal.style.display = "none";
+    };
+
+    // Función para agregar consumo en editar otro servicio
+    document.getElementById("addConsumoOtroServicioEditButton").addEventListener("click", () => {
+      const selectedValue = document.getElementById("consumoOtroServicioEdit").value;
+      const cantidad = parseInt(document.getElementById("cantidadOtroServicioEdit").value);
+
+      if (selectedValue && cantidad > 0) {
+        const existingIndex = consumosSeleccionados.findIndex(c => c.id === selectedValue);
+
+        if (existingIndex !== -1) {
+          consumosSeleccionados[existingIndex].cantidad += cantidad;
+        } else {
+          consumosSeleccionados.push({ id: selectedValue, cantidad: cantidad });
+        }
+
+        updateEditConsumoList(consumosSeleccionados, document.getElementById("consumoListOtroServicioEdit"));
+
+        document.getElementById("consumoOtroServicioEdit").value = "";
+        document.getElementById("cantidadOtroServicioEdit").value = "";
+        document.getElementById("consumoOtroServicioEdit").selectedIndex = 0;
+      } else {
+        alert("Por favor, seleccione un producto y una cantidad válida.");
+      }
+    });
+
+    // Función para comparar consumos
+    const compareConsumo = (consumo1, consumo2) => {
+      if (consumo1.length !== consumo2.length) return false;
+
+      const mapConsumo1 = new Map();
+      const mapConsumo2 = new Map();
+
+      consumo1.forEach(item => {
+        mapConsumo1.set(item.id, item.cantidad);
+      });
+
+      consumo2.forEach(item => {
+        mapConsumo2.set(item.id, item.cantidad);
+      });
+
+      for (const [id, cantidad] of mapConsumo1) {
+        if (mapConsumo2.get(id) !== cantidad) {
+          return false;
+        }
+      }
+
+      return true;
+    };
+
+    // Guardar cambios en el otro servicio
+    document.getElementById("editOtherServiceForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const otherServiceId = document.getElementById("otherServiceId").value;
+      const nombre = document.getElementById("nombreOtroServicioEdit").value;
+      const precio = parseFloat(document.getElementById("precioOtroServicioEdit").value);
+      const icon = document.getElementById("iconOtroServicioEdit").value;
+      const consumo = consumosSeleccionados;
+
+      // Verificar si hay cambios
+      const cambios = [];
+      if (nombre !== originalOtroServicio.nombre) {
+        cambios.push(`Nombre: de '${originalOtroServicio.nombre}' a '${nombre}'`);
+      }
+      if (precio !== originalOtroServicio.precio) {
+        cambios.push(`Precio: de '${originalOtroServicio.precio}' a '${precio}'`);
+      }
+      if (icon !== originalOtroServicio.icon) {
+        cambios.push(`Icono: de '${originalOtroServicio.icon}' a '${icon}'`);
+      }
+      if (!compareConsumo(consumo, originalOtroServicio.consumo)) {
+        cambios.push(`Consumo: de '${formatConsumo(originalOtroServicio.consumo)}' a '${formatConsumo(consumo)}'`);
+      }
+
+      if (cambios.length > 0) {
+        try {
+          await db.collection("servicio").doc(otherServiceId).update({
+            nombre: nombre,
+            precio: precio,
+            icon: icon,
+            consumo: consumo
+          });
+
+          await db.collection("historialAdmin").add({
+            accion: "Otro Servicio Actualizado",
+            nombre: nombre,
+            cambio: cambios.join(", "),
+            fecha: new Date()
+          });
+
+          alert("Cambios guardados correctamente");
+          editOtherServiceModal.style.display = "none";
+          loadOtherServices();
+        } catch (error) {
+          console.error("Error al guardar los cambios: ", error);
+        }
+      } else {
+        alert("No se realizaron cambios.");
+      }
+    });
+
+    // Cargar Hampers y Otros Servicios al iniciar
+    loadHampers();
+    loadOtherServices();
+
+
+
+
+
+
+
+
+
+
+    // Abrir modal de configuración ITBIS
+    document.getElementById("configurarITBISButton").onclick = function () {
+      document.getElementById("configurarITBISModal").style.display = "block";
+      loadITBISConfig();
+    }
+
+    // Cerrar modal de configuración ITBIS
+    document.getElementById("closeConfigurarITBISModal").onclick = function () {
+      document.getElementById("configurarITBISModal").style.display = "none";
+    }
+
+
+
+
+
+
+    // Variables para almacenar los valores originales
+    let originalAsumirPor = "";
+    let originalCantidadPorciento = 0;
+
+    // Cargar configuración de ITBIS y almacenar valores originales
+    const loadITBISConfig = () => {
+      db.collection("impuestos").limit(1).get().then((snapshot) => {
+        if (!snapshot.empty) {
+          const doc = snapshot.docs[0]; // Obtener el primer documento
+          const data = doc.data();
+          originalAsumirPor = data.asumirPor; // Almacenar valor original
+          originalCantidadPorciento = data.cantidadPorciento; // Almacenar valor original
+
+          // Mostrar valores en el modal
+          document.getElementById("asumir").value = data.asumirPor;
+          document.getElementById("cantidadPorciento").value = data.cantidadPorciento;
+        } else {
+          console.error("No se encontró ningún documento en la colección 'impuestos'");
+        }
+      }).catch((error) => {
+        console.error("Error al cargar la configuración de ITBIS: ", error);
+      });
+    };
+
+    // Guardar cambios en la configuración de ITBIS
+    document.getElementById("saveITBISChangesButton").onclick = function () {
+      const nuevoAsumirPor = document.getElementById("asumir").value;
+      const nuevoCantidadPorciento = parseFloat(document.getElementById("cantidadPorciento").value);
+
+      // Verificar si hubo cambios
+      const cambios = [];
+      if (nuevoAsumirPor !== originalAsumirPor) {
+        cambios.push({
+          campo: "asumirPor",
+          valorAnterior: originalAsumirPor,
+          valorNuevo: nuevoAsumirPor
+        });
+      }
+      if (nuevoCantidadPorciento !== originalCantidadPorciento) {
+        cambios.push({
+          campo: "cantidadPorciento",
+          valorAnterior: originalCantidadPorciento,
+          valorNuevo: nuevoCantidadPorciento
+        });
+      }
+
+      // Si no hay cambios, no hacer nada
+      if (cambios.length === 0) {
+        alert("No se realizaron cambios.");
+        return;
+      }
+
+      // Crear el mensaje de cambio
+      let mensajeCambio = "";
+      if (cambios.length === 2) {
+        // Si ambos campos cambiaron, crear un solo mensaje
+        mensajeCambio = `Asumir por: de '${cambios[0].valorAnterior}' a '${cambios[0].valorNuevo}' - Cantidad de porciento (%): de '${cambios[1].valorAnterior}' a '${cambios[1].valorNuevo}'`;
+      } else {
+        // Si solo un campo cambió, crear el mensaje correspondiente
+        cambios.forEach(cambio => {
+          mensajeCambio += `${cambio.campo}: de '${cambio.valorAnterior}' a '${cambio.valorNuevo}'`;
+        });
+      }
+
+      // Actualizar la configuración en Firestore
+      db.collection("impuestos").limit(1).get().then((snapshot) => {
+        if (!snapshot.empty) {
+          const doc = snapshot.docs[0]; // Obtener el primer documento
+          return db.collection("impuestos").doc(doc.id).update({
+            asumirPor: nuevoAsumirPor,
+            cantidadPorciento: nuevoCantidadPorciento
+          });
+        } else {
+          throw new Error("No se encontró ningún documento en la colección 'impuestos'");
+        }
+      }).then(() => {
+        // Registrar cambios en el historial
+        return db.collection("historialAdmin").add({
+          accion: "Actualización de ITBIS",
+          cambio: mensajeCambio,
+          fecha: new Date()
+        });
+      }).then(() => {
+        alert("Cambios guardados con éxito");
+        document.getElementById("configurarITBISModal").style.display = "none"; // Cerrar el modal
+        loadITBISConfig(); // Recargar la configuración
+      }).catch((error) => {
+        console.error("Error al guardar cambios: ", error);
+      });
+    };
+
+
+
+
+
+
+    const empleadosModal = document.getElementById("empleadosModal");
+    const empleadosList = document.getElementById("empleadosList");
+    const nuevoEmpleadoInput = document.getElementById("nuevoEmpleado");
+    const addEmpleadoButton = document.getElementById("addEmpleadoButton");
+    const saveChangesButton = document.getElementById("saveChangesButton");
+
+    // Objeto para almacenar cambios
+    let cambiosEmpleados = {};
+
+    // Abrir modal de empleados
+    document.getElementById("empleadosButton").onclick = function () {
+      empleadosModal.style.display = "block";
+      loadEmpleados();
+    }
+
+    // Cerrar modal de empleados
+    document.getElementById("closeEmpleadosModal").onclick = function () {
+      empleadosModal.style.display = "none";
+    }
+
+
+
+
+
+
+
+    // Cargar empleados desde Firebase
+    let empleadosOriginales = [];
+
+    // Cargar empleados desde Firebase
+    const loadEmpleados = () => {
+      db.collection("empleados").get().then((snapshot) => {
+        empleadosList.innerHTML = ""; // Limpiar la lista
+        empleadosOriginales = []; // Reiniciar la lista de empleados originales
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          empleadosOriginales.push({ id: doc.id, nombre: data.nombre }); // Almacenar empleados originales
+          const li = document.createElement("li");
+          li.innerHTML = `
+        <input type="text" value="${data.nombre}" data-id="${doc.id}" />
+        <button onclick="markForDeletion('${doc.id}')">Eliminar</button>
+      `;
+          empleadosList.appendChild(li);
+        });
+      }).catch((error) => {
+        console.error("Error al cargar empleados: ", error);
+      });
+    };
+
+    // Variables para almacenar cambios
+    let empleadosNuevos = [];
+    let empleadosEliminados = [];
+    let empleadosActualizados = [];
+    let empleadosParaEliminar = []; // Lista de empleados marcados para eliminación
+
+    // Función para añadir un nuevo empleado
+    addEmpleadoButton.onclick = function () {
+      const nombre = nuevoEmpleadoInput.value;
+      if (nombre) {
+        const nuevoId = `nuevo_${Date.now()}`; // ID temporal
+        empleadosNuevos.push({ id: nuevoId, nombre: nombre }); // Almacenar en la lista de nuevos
+        nuevoEmpleadoInput.value = ""; // Limpiar el input
+
+        // Agregar a la lista visible
+        const li = document.createElement("li");
+        li.innerHTML = `
+      <input type="text" value="${nombre}" data-id="${nuevoId}" />
+      <button onclick="markForDeletion('${nuevoId}')">Eliminar</button>
+    `;
+        empleadosList.appendChild(li);
+      }
+    };
+
+    // Función para marcar un empleado para eliminación
+    const markForDeletion = (id) => {
+      const input = document.querySelector(`input[data-id='${id}']`);
+      if (input) {
+        const nombre = input.value;
+        input.parentElement.remove(); // Eliminar de la lista visible
+
+        if (!id.startsWith("nuevo_")) {
+          empleadosParaEliminar.push(id); // Agregar a la lista de eliminados
+        } else {
+          // Si es un empleado nuevo que no se ha guardado en Firestore, eliminarlo de la lista de nuevos
+          empleadosNuevos = empleadosNuevos.filter(emp => emp.id !== id);
+        }
+      }
+    };
+
+    // Función para guardar cambios en los empleados
+    saveChangesButton.onclick = async function () {
+      const inputs = empleadosList.querySelectorAll("input[type=text]");
+
+      // Almacenar cambios en el objeto
+      inputs.forEach(input => {
+        const id = input.getAttribute("data-id");
+        const nombre = input.value;
+
+        // Solo almacenar cambios si el nombre ha cambiado y no está marcado para eliminación
+        if (nombre && !empleadosParaEliminar.includes(id)) {
+          cambiosEmpleados[id] = nombre;
+        }
+      });
+
+      // Aplicar cambios a Firebase
+      const promises = [];
+
+      // Registrar cambios en el historial
+      for (const id in cambiosEmpleados) {
+        if (!id.startsWith("nuevo_")) { // Solo registrar cambios si no es un nuevo empleado
+          const empleadoOriginal = empleadosOriginales.find(emp => emp.id === id);
+          if (empleadoOriginal && empleadoOriginal.nombre !== cambiosEmpleados[id]) {
+            // Registrar la actualización en el historial
+            promises.push(
+              db.collection("historialAdmin").add({
+                accion: "Empleado actualizado",
+                cambio: `Nombre: de '${empleadoOriginal.nombre}' a '${cambiosEmpleados[id]}'`,
+                fecha: new Date()
+              })
+            );
+          }
+        } else {
+          // Registrar la adición de un nuevo empleado en el historial
+          promises.push(
+            db.collection("historialAdmin").add({
+              accion: "Empleado añadido",
+              cambio: `Nombre: '${cambiosEmpleados[id]}'`,
+              fecha: new Date()
+            })
+          );
+        }
+      }
+
+      // Registrar eliminaciones en el historial
+      empleadosParaEliminar.forEach(id => {
+        // Obtener el nombre del empleado antes de eliminarlo
+        const nombre = empleadosOriginales.find(emp => emp.id === id)?.nombre || "Desconocido";
+        promises.push(
+          db.collection("historialAdmin").add({
+            accion: "Empleado eliminado",
+            cambio: `Nombre: '${nombre}'`,
+            fecha: new Date()
+          })
+        );
+      });
+
+      // Actualizar empleados existentes
+      for (const id in cambiosEmpleados) {
+        if (!id.startsWith("nuevo_")) { // Solo actualizar si no es un nuevo empleado
+          promises.push(db.collection("empleados").doc(id).update({ nombre: cambiosEmpleados[id] }));
+        } else {
+          // Agregar nuevo empleado
+          promises.push(db.collection("empleados").add({ nombre: cambiosEmpleados[id] }));
+        }
+      }
+
+      // Eliminar empleados marcados
+      empleadosParaEliminar.forEach(id => {
+        promises.push(db.collection("empleados").doc(id).delete());
+      });
+
+      // Ejecutar todas las promesas
+      try {
+        await Promise.all(promises);
+        alert("Cambios guardados con éxito");
+        empleadosModal.style.display = "none"; // Cerrar el modal
+        loadEmpleados(); // Recargar la lista
+        cambiosEmpleados = {}; // Limpiar el objeto de cambios
+        empleadosParaEliminar = []; // Limpiar la lista de eliminaciones
+      } catch (error) {
+        console.error("Error al guardar cambios: ", error);
+      }
+    };
+
+    // Función para limpiar los cambios después de guardar
+    const resetCambios = () => {
+      empleadosNuevos = [];
+      empleadosEliminados = [];
+      empleadosActualizados = [];
+    };
+
+
+
+
+
+    // Abrir modal de historial
+    document.getElementById("historialButton").onclick = function () {
+      document.getElementById("historialModal").style.display = "block";
+      loadHistorial();
+    };
+
+
+    // Cerrar modal de historial
+    document.getElementById("closeHistorialModal").onclick = function () {
+      document.getElementById("historialModal").style.display = "none";
+    };
+
+    // Cargar historial desde Firestore
+
+    let lastVisible = null; // Variable para almacenar el último documento visible
+    let historialList = document.getElementById("historialList");
+    let noMoreRecordsMessage = document.getElementById("noMoreRecordsMessage");
+
+    const loadHistorial = (loadMore = false) => {
+      let query = db.collection("historialAdmin")
+        .orderBy("fecha", "desc")
+        .limit(10);
+
+      // Si se está cargando más, comenzar después del último documento visible
+      if (loadMore && lastVisible) {
+        query = query.startAfter(lastVisible);
+      }
+
+      query.get()
+        .then((snapshot) => {
+          if (snapshot.empty && !loadMore) {
+            historialList.innerHTML = "<li>No hay registros en el historial.</li>";
+            return;
+          }
+
+          if (!loadMore) {
+            historialList.innerHTML = ""; // Limpiar la lista solo si no se está cargando más
+            noMoreRecordsMessage.style.display = "none"; // Ocultar el mensaje "No hay más registros"
+          }
+
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            const li = document.createElement("li");
+
+            // Formatear la fecha
+            const fechaFormateada = data.fecha.toDate().toLocaleString("es-DO", { timeZone: "America/Santo_Domingo" });
+
+            // Crear contenido del historial según la acción
+            let contenido = `<strong>${data.accion}</strong><br>`;
+            contenido += `<small>${fechaFormateada}</small><br>`;
+            if (data.nombre) contenido += `Nombre: ${data.nombre}<br>`;
+            if (data.precio) contenido += `Precio: ${data.precio}<br>`;
+            if (data["Libras Mínimas"]) contenido += `Libras Mínimas: ${data["Libras Mínimas"]}<br>`;
+            if (data["Libras Máximas"]) contenido += `Libras Máximas: ${data["Libras Máximas"]}<br>`;
+            if (data["Precio por Libra"]) contenido += `Precio por Libra: ${data["Precio por Libra"]}<br>`;
+            if (data["consumo de inventario"]) contenido += `Consumo de inventario: ${data["consumo de inventario"]}<br>`;
+            if (data.cambio) contenido += `Cambios: ${data.cambio}<br>`;
+
+            li.innerHTML = contenido;
+
+            // Asignar clase según la acción
+            if (data.accion.includes("Añadido")) {
+              li.classList.add("historial-add");
+            } else if (data.accion.includes("Actualizado")) {
+              li.classList.add("historial-update");
+            } else if (data.accion.includes("Eliminado")) {
+              li.classList.add("historial-delete");
+            }
+
+            // Asignar clase según la acción (específica para empleados)
+            if (data.accion === "Empleado añadido") {
+              li.classList.add("historial-add"); // Fondo verde para añadir
+            } else if (data.accion === "Empleado actualizado") {
+              li.classList.add("historial-update"); // Fondo azul para actualizar
+            } else if (data.accion === "Empleado eliminado") {
+              li.classList.add("historial-delete"); // Fondo rojo para eliminar
+            }
+
+            // Asignar clase específica para actualización de ITBIS
+            if (data.accion === "Actualización de ITBIS") {
+              li.classList.add("ITBIS-update"); // Fondo naranja para ITBIS
+            }
+
+            historialList.appendChild(li);
+          });
+
+          // Actualizar el último documento visible
+          lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+          // Mostrar u ocultar el botón "Cargar más" y el mensaje "No hay más registros"
+          if (snapshot.docs.length < 10) {
+            document.getElementById("loadMoreButton").style.display = "none";
+            noMoreRecordsMessage.style.display = "block"; // Mostrar el mensaje "No hay más registros"
+          } else {
+            document.getElementById("loadMoreButton").style.display = "block";
+            noMoreRecordsMessage.style.display = "none"; // Ocultar el mensaje "No hay más registros"
+          }
+        })
+        .catch((error) => {
+          console.error("Error al cargar el historial: ", error);
+        });
+    };
+    // Abrir modal de historial FIN 
+
+
+
+    document.getElementById("loadMoreButton").addEventListener("click", () => {
+      loadHistorial(true); // Cargar más registros
+    });
+
+    document.getElementById("historialButton").onclick = function () {
+      document.getElementById("historialModal").style.display = "block";
+      loadHistorial(); // Cargar los primeros 10 registros
+    };
+
+
+
+
+
+
+
+    // Variable para controlar si ya hemos aplicado el estilo responsive
+    let responsiveApplied = false;
+
+    // Función para hacer la tabla responsive
+    function applyResponsiveTable() {
+      if (responsiveApplied) return;
+
+      const table = document.getElementById('usersTable');
+      if (!table) return;
+
+      const tbody = table.querySelector('tbody');
+      if (!tbody) return;
+
+      // Verificar si ya tiene los data-labels
+      const firstRow = tbody.querySelector('tr');
+      if (firstRow && firstRow.querySelector('td[data-label]')) {
+        responsiveApplied = true;
+        return;
+      }
+
+      // Obtener los headers
+      const headers = Array.from(table.querySelectorAll('th')).map(th => th.textContent);
+
+      // Aplicar data-labels a cada celda
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        cells.forEach((cell, index) => {
+          if (index < headers.length) {
+            cell.setAttribute('data-label', headers[index]);
+          }
+        });
+      });
+
+      responsiveApplied = true;
+    }
+
+    // Variable para evitar múltiples cargas simultáneas
+    let isLoadingUsers = false;
+
+    // Función para cargar usuarios
+    function loadUsers() {
+      if (isLoadingUsers) return;
+      isLoadingUsers = true;
+
+      const tbody = document.querySelector('#usersTable tbody');
+      if (!tbody) {
+        isLoadingUsers = false;
+        return;
+      }
+
+      // Limpiar tabla
+      tbody.innerHTML = '';
+
+      db.collection('users').orderBy('createdAt', 'desc').get()
+        .then((querySnapshot) => {
+          const usersMap = new Map(); // Usar Map para evitar duplicados por ID
+
+          querySnapshot.forEach((doc) => {
+            usersMap.set(doc.id, doc.data()); // Esto asegura que no haya duplicados
+          });
+
+          usersMap.forEach((user, id) => {
+            const row = document.createElement('tr');
+
+            // Construir las celdas con data-labels directamente
+            row.innerHTML = `
+          <td data-label="Nombre:">${user.name || '-'}</td>
+          <td data-label="Correo:">${user.email}</td>
+          <td data-label="Rol:">${user.role === 'admin' ? 'Administrador' : 'Empleado'}</td>
+          <td>
+              <button class="reset-btn" data-id="${id}" data-email="${user.email}">Resetear Contraseña</button>
+              ${auth.currentUser.uid !== id ?
+                `<button class="delete-btn" data-id="${id}">Eliminar Usuario</button>` :
+                ''}
+          </td>
+        `;
+
+            tbody.appendChild(row);
+          });
+
+          // Aplicar responsive solo si es móvil
+          if (window.innerWidth <= 768) {
+            applyResponsiveTable();
+          }
+
+          // Configurar event listeners usando delegación de eventos
+          setupTableEventListeners();
+        })
+        .catch((error) => {
+          console.error("Error al cargar usuarios:", error);
+        })
+        .finally(() => {
+          isLoadingUsers = false;
+        });
+    }
+
+    // Configurar event listeners usando delegación
+    function setupTableEventListeners() {
+      const tbody = document.querySelector('#usersTable tbody');
+      if (!tbody) return;
+
+      // Eliminar listeners anteriores para evitar duplicados
+      tbody.removeEventListener('click', handleTableClick);
+
+      // Agregar nuevo listener
+      tbody.addEventListener('click', handleTableClick);
+    }
+
+    function handleTableClick(event) {
+      const target = event.target;
+
+      if (target.classList.contains('reset-btn')) {
+        const userId = target.getAttribute('data-id');
+        const userEmail = target.getAttribute('data-email');
+        resetPassword(userId, userEmail);
+      }
+      else if (target.classList.contains('delete-btn')) {
+        const userId = target.getAttribute('data-id');
+        deleteUser(userId);
+      }
+    }
+
+    // Evento para aplicar responsive al cambiar tamaño
+    function handleResize() {
+      if (window.innerWidth <= 768) {
+        applyResponsiveTable();
+      } else {
+        // Resetear para que se vuelva a aplicar si se reduce la pantalla
+        responsiveApplied = false;
+      }
+    }
+
+    // Inicialización
+    let isInitialized = false;
+
+    function initAdminPage() {
+      if (isInitialized) return;
+      isInitialized = true;
+
+      // Registrar eventos
+      const registerBtn = document.getElementById('registerBtn');
+      if (registerBtn) {
+        registerBtn.addEventListener('click', registerUser);
+      }
+
+      // Cargar usuarios iniciales
+      loadUsers();
+
+      // Escuchar cambios de tamaño
+      window.addEventListener('resize', handleResize);
+    }
+
+    // Ejecutar solo una vez cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', initAdminPage);
+  </script>
+</body>
+
+
+</html>
