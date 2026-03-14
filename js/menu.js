@@ -19,7 +19,7 @@ class LaundryMenu extends HTMLElement {
                         <img src="./img/Paris Laundry 1.png" alt="Logo">
                         <div>
                         <h1>Paris Laundry</h1>
-                        <h2 class="admin-only">ADMINISTRADOR</h2>
+                        <h2 class="admin-only">CHARLES</h2>
                         </div>
                     </div>
                     <div class="linediv"></div>
@@ -245,34 +245,36 @@ class LaundryMenu extends HTMLElement {
     }
 
     loadFacturasCount() {
-        this.unsubscribePendiente = db.collection('facturas')
-            .where('status', '==', 'pago pendiente')
-            .onSnapshot((snapshot) => {
-                const count = snapshot.size;
-                this.updateDisplay('facturasCountPendiente', count);
-            }, (error) => {
-                console.error("Error al obtener las facturas en 'pago pendiente': ", error);
-                document.getElementById('facturasCountPendiente').textContent = `Error`;
-            });
+        // Escuchar en tiempo real los últimos 14 días de facturas-por-dia
+        // y contar por estado en el frontend
+        const rdOffset = -4 * 60;
+        const now = new Date();
+        const localNow = new Date(now.getTime() + (rdOffset - now.getTimezoneOffset()) * 60000);
+        const hoy = localNow.toISOString().split('T')[0];
 
-        this.unsubscribePagado = db.collection('facturas')
-            .where('status', '==', 'pagado')
-            .onSnapshot((snapshot) => {
-                const count = snapshot.size;
-                this.updateDisplay('facturasCountPagado', count);
-            }, (error) => {
-                console.error("Error al obtener las facturas en 'pagado': ", error);
-                document.getElementById('facturasCountPagado').textContent = `Error`;
-            });
+        // Calcular fecha hace 14 días para no cargar demasiados documentos
+        const hace14 = new Date(localNow);
+        hace14.setDate(hace14.getDate() - 14);
+        const hace14Key = hace14.toISOString().split('T')[0];
 
-        this.unsubscribePagadoListo = db.collection('facturas')
-            .where('status', '==', 'pagado listo')
+        this.unsubscribeFacturasCount = db.collection('facturas-por-dia')
+            .where('fechaString', '>=', hace14Key)
+            .where('fechaString', '<=', hoy)
             .onSnapshot((snapshot) => {
-                const count = snapshot.size;
-                this.updateDisplay('facturasCountPagadoListo', count);
+                let pendiente = 0, pagado = 0, pagadoListo = 0;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    (data.facturas || []).forEach(f => {
+                        if (f.status === 'pago pendiente') pendiente++;
+                        else if (f.status === 'pagado') pagado++;
+                        else if (f.status === 'pagado listo') pagadoListo++;
+                    });
+                });
+                this.updateDisplay('facturasCountPendiente', pendiente);
+                this.updateDisplay('facturasCountPagado', pagado);
+                this.updateDisplay('facturasCountPagadoListo', pagadoListo);
             }, (error) => {
-                console.error("Error al obtener las facturas en 'pagado listo': ", error);
-                document.getElementById('facturasCountPagadoListo').textContent = `Error`;
+                console.error("Error al obtener contadores de facturas:", error);
             });
     }
 
