@@ -709,13 +709,13 @@ button {
 
 /* ── PILLS ──────────────────────────────────────────────────── */
 .pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 9px;
-  border-radius: 99px;
-  font-size: 11px;
-  font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px;
+    border-radius: 99px;
+    font-size: 0.9rem;
+    font-weight: 600;
 }
 
 .pill-teal {
@@ -847,7 +847,8 @@ button {
 
 .tx-table td.mono {
   font-family: var(--font-mono);
-  font-size: 11px;
+    font-size: 1rem;
+    font-weight: 500;
   color: var(--text-muted);
 }
 
@@ -929,9 +930,10 @@ button {
 }
 
 .record-count {
-  font-size: 12px;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
+    font-size: 1rem;
+    font-family: sans-serif;
+    color: #1e1e1e;
+    font-weight: bold;
 }
 
 /* ── FIN RESUMEN ────────────────────────────────────────────── */

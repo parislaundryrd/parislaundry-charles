@@ -242,6 +242,9 @@
               <option value="all">Todas las transacciones</option>
               <option value="expense">Solo Gastos</option>
               <option value="income">Solo Ingresos</option>
+              <option value="factura_efectivo">Facturas — Efectivo</option>
+              <option value="factura_transferencia">Facturas — Transferencia</option>
+              <option value="factura_tarjeta">Facturas — Tarjeta de Crédito</option>
             </select>
           </div>
 
@@ -884,7 +887,9 @@
             id: f.id, type: 'income', amount: monto, date,
             details: `Factura | ${f.clientName} | ${f.clientPhone} | ${f.NombreEmpleado}`,
             clientName: f.clientName, clientPhone: f.clientPhone, clientAddress: f.clientAddress,
-            NombreEmpleado: f.NombreEmpleado, deliveryOption: f.deliveryOption, _source: 'factura'
+            NombreEmpleado: f.NombreEmpleado, deliveryOption: f.deliveryOption,
+            paymentMethod: f.paymentMethod || '', invoiceStatus: f.status || '',
+            _source: 'factura'
           });
           totalIncome += monto;
         });
@@ -912,7 +917,22 @@
 
       window.combinedTransactions.forEach(item => {
         if (!item.date) return;
-        if (typeFilter !== 'all' && item.type !== typeFilter) return;
+
+        // Filtros de método de pago para facturas
+        if (typeFilter === 'factura_efectivo') {
+          if (item._source !== 'factura') return;
+          const m = (item.paymentMethod || '').toLowerCase();
+          if (m !== 'efectivo') return;
+        } else if (typeFilter === 'factura_transferencia') {
+          if (item._source !== 'factura') return;
+          const m = (item.paymentMethod || '').toLowerCase();
+          if (m !== 'transferencia') return;
+        } else if (typeFilter === 'factura_tarjeta') {
+          if (item._source !== 'factura') return;
+          const m = (item.paymentMethod || '').toLowerCase();
+          if (!m.includes('tarjeta')) return;
+        } else if (typeFilter !== 'all' && item.type !== typeFilter) return;
+
         if (term && !`${item.id || ''} ${item.details || ''} ${item.amount}`.toLowerCase().includes(term)) return;
 
         count++;
@@ -929,12 +949,28 @@
           pago_empleado: '👤', pago_empleado_legado: '👤'
         }[item._source] || '•';
 
+        // Sub-label de método de pago para facturas (debajo del pill de tipo)
+        let paySubLabel = '';
+        if (item._source === 'factura') {
+          const m = (item.paymentMethod || '').toLowerCase();
+          const s = (item.invoiceStatus || '').toLowerCase();
+          if (s === 'pago pendiente') {
+            paySubLabel = '<div style="display: inline-block;font-size: 0.8rem;padding: 1px 6px;border-radius: 20px;background: #fef4db;color: #dd7435;font-weight: 600;vertical-align: middle;">⏳ Pendiente</div>';
+          } else if (m === 'efectivo') {
+            paySubLabel = '<div style="display: inline-block;font-size: 0.8rem;padding: 1px 6px;border-radius: 20px;background: #e7fedb;color: #0a8562;font-weight: 600;vertical-align: middle;">💵 Efectivo</div>';
+          } else if (m === 'transferencia') {
+            paySubLabel = '<div style="display: inline-block;font-size: 0.8rem;padding: 1px 6px;border-radius: 20px;background: #dbeafe;color: #1e40af;font-weight: 600;vertical-align: middle;">🏦 Transferencia</div>';
+          } else if (m.includes('tarjeta')) {
+            paySubLabel = '<div style="display: inline-block;font-size: 0.8rem;padding: 1px 6px;border-radius: 20px;background: #e7dbfe;color: #5b21b6;font-weight: 600;vertical-align: middle;">💳 Tarjeta</div>';
+          }
+        }
+
         tr.innerHTML = `
       <td><input type="checkbox" class="tx-cb" checked></td>
-      <td class="mono dim" style="font-size:11px;">${item.id || '—'}</td>
-      <td>${typePill} <span style="font-size:11px;color:var(--txt3);">${srcIcon}</span></td>
+      <td class="mono dim" style="font-size:0.8rem;">${item.id || '—'}</td>
+      <td><div>${typePill} <span style="font-size:11px;color:var(--txt3);">${srcIcon}</span></div>${paySubLabel}</td>
       <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${item.details || ''}">${item.details || '—'}</td>
-      <td class="mono" style="color:${amtColor};font-weight:600;white-space:nowrap;">${amtSign}${fmtMoney(item.amount)}</td>
+      <td class="mono" style="color:${amtColor};white-space:nowrap;">${amtSign}${fmtMoney(item.amount)}</td>
       <td class="dim" style="white-space:nowrap;">${item.date ? `${item.date.toLocaleDateString('es-DO')} ${formatTime(item.date)}` : '—'}</td>
     `;
 
@@ -952,7 +988,9 @@
 
       if (!count) tbody.innerHTML = `<tr><td colspan="6" class="pl-empty">Sin transacciones en este período</td></tr>`;
 
-      document.getElementById('txCount').textContent = `${count} registros`;
+      const countText = `${count} ${count === 1 ? 'registro' : 'registros'}`;
+      document.getElementById('txCount').textContent = countText;
+      document.getElementById('txCountInline').textContent = countText;
       updateTxSummaryDisplay(income, expenses);
     };
 
