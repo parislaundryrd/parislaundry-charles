@@ -767,6 +767,16 @@
       }
       return null;
     };
+
+    // Devuelve { diaKey, factura } con los datos completos de la factura
+    const buscarFacturaCompleta = async (facturaId) => {
+      const snap = await db.collection('facturas-por-dia').orderBy('fecha', 'desc').limit(120).get();
+      for (const doc of snap.docs) {
+        const encontrada = (doc.data().facturas || []).find(f => f.id === facturaId);
+        if (encontrada) return { diaKey: doc.id, factura: encontrada };
+      }
+      return null;
+    };
     const actualizarFacturaEnDia = async (facturaId, campos) => {
       const diaKey = await buscarDiaDeFactura(facturaId);
       if (!diaKey) throw new Error('Día de factura no encontrado');
@@ -785,6 +795,60 @@
         const doc = await tx.get(ref);
         if (!doc.exists) throw new Error('Doc no existe');
         tx.update(ref, { facturas: (doc.data().facturas || []).filter(f => f.id !== facturaId) });
+      });
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    // ARCHIVO DE ELIMINADOS
+    // Colección: facturas_eliminadas
+    //   Documento "facturas"      → { facturas: [...] }
+    //   Documento "transacciones" → { transacciones: [...] }
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Archiva un objeto eliminado en facturas_eliminadas.
+     * @param {'facturas'|'transacciones'} tipo - nombre del documento destino
+     * @param {object} objeto - datos completos del item a archivar
+     */
+    const archivarEnEliminadas = async (tipo, objeto) => {
+      // Añadir metadato de cuándo y quién eliminó
+      const user = auth.currentUser;
+      const objetoConMeta = {
+        ...objeto,
+        _eliminadoEn: new Date().toISOString(),
+        _eliminadoPor: user ? (user.email || user.uid) : 'desconocido'
+      };
+
+      // Serializar Timestamps a objeto plano para que arrayUnion funcione correctamente
+      const serializar = (val) => {
+        if (val === null || val === undefined) return val;
+        if (typeof val !== 'object') return val;
+        if (val.toDate) return val.toDate().toISOString(); // Firestore Timestamp
+        if (val._seconds !== undefined) return new Date(val._seconds * 1000).toISOString();
+        if (val instanceof Date) return val.toISOString();
+        if (Array.isArray(val)) return val.map(serializar);
+        const out = {};
+        for (const k of Object.keys(val)) out[k] = serializar(val[k]);
+        return out;
+      };
+
+      const objetoFinal = serializar(objetoConMeta);
+
+      const ref = db.collection('facturas_eliminadas').doc(tipo);
+
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (snap.exists) {
+          tx.update(ref, {
+            [tipo]: firebase.firestore.FieldValue.arrayUnion(objetoFinal),
+            ultimaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        } else {
+          tx.set(ref, {
+            [tipo]: [objetoFinal],
+            ultimaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
       });
     };
 
@@ -1478,6 +1542,12 @@
       document.getElementById('editTransactionId').dataset.diaKey = tx._diaKey || '';
       document.getElementById('editTransactionId').dataset.docId = tx._docId || '';
       document.getElementById('editTransactionId').dataset.source = tx._source || '';
+      // Guardar datos completos para archivar en caso de eliminación
+      document.getElementById('editTransactionId').dataset.txJson = JSON.stringify({
+        id: tx.id, type: tx.type, amount: tx.amount,
+        date: tx.date ? tx.date.toISOString() : null,
+        details: tx.details, _diaKey: tx._diaKey || '', _source: tx._source || ''
+      });
       openModal('editTransactionModal');
     };
     document.getElementById('closeEditModal').addEventListener('click', () => closeModal('editTransactionModal'));
@@ -1509,13 +1579,21 @@
     });
 
     document.getElementById('deleteTransactionButton').addEventListener('click', async () => {
-      if (!confirm('¿Eliminar esta transacción?')) return;
+      if (!confirm('¿Eliminar esta transacción? Se archivará en la base de datos por seguridad.')) return;
       const el = document.getElementById('editTransactionId');
       const id = el.value;
       const diaKey = el.dataset.diaKey;
       const docId = el.dataset.docId;
       const source = el.dataset.source;
+      const txJson = el.dataset.txJson;
+
       try {
+        // 1. Archivar datos antes de eliminar
+        let datosParaArchivar = { id, _source: source };
+        try { datosParaArchivar = txJson ? JSON.parse(txJson) : datosParaArchivar; } catch (_) {}
+        await archivarEnEliminadas('transacciones', datosParaArchivar);
+
+        // 2. Eliminar de origen
         if (source === 'transaccion' && diaKey) {
           await eliminarTxDeDia(diaKey, id);
         } else if (source === 'transaccion_legada' && docId) {
@@ -1560,10 +1638,19 @@
       } catch (e) { console.error(e); alert('Error: ' + e.message); }
     });
     document.getElementById('deleteInvoiceButton').addEventListener('click', async () => {
-      if (!confirm('¿Eliminar esta factura?')) return;
+      if (!confirm('¿Eliminar esta factura? Se archivará en la base de datos por seguridad.')) return;
       const id = document.getElementById('editInvoiceId').value;
       try {
+        // 1. Obtener datos completos antes de eliminar
+        const resultado = await buscarFacturaCompleta(id);
+        const datosFactura = resultado ? resultado.factura : { id, _nota: 'datos no recuperados' };
+
+        // 2. Archivar en facturas_eliminadas/facturas
+        await archivarEnEliminadas('facturas', datosFactura);
+
+        // 3. Eliminar de facturas-por-dia
         await eliminarFacturaDeDia(id);
+
         alert('Factura eliminada.'); closeModal('editInvoiceModal'); loadAll();
       } catch (e) { console.error(e); alert('Error: ' + e.message); }
     });
@@ -1577,6 +1664,17 @@
       document.getElementById('editEmployeePaymentId').dataset.diaKey = item._diaKey || '';
       document.getElementById('editEmployeePaymentId').dataset.docId = item._docId || '';
       document.getElementById('editEmployeePaymentId').dataset.source = item._source || '';
+      // Guardar datos completos para archivar en caso de eliminación
+      document.getElementById('editEmployeePaymentId').dataset.pagoJson = JSON.stringify({
+        id: p.id || item.id,
+        employeeName: p.employeeName, total: p.total,
+        salaryPayment: p.salaryPayment, holidayPayment: p.holidayPayment,
+        overtimePayment: p.overtimePayment, vacationPayment: p.vacationPayment,
+        christmasPayment: p.christmasPayment, productSale: p.productSale,
+        productionIncentive: p.productionIncentive, punctualityIncentive: p.punctualityIncentive,
+        licenseDay: p.licenseDay, insurance: p.insurance,
+        _diaKey: item._diaKey || '', _source: item._source || ''
+      });
       document.getElementById('editEmployeePaymentName').value = p.employeeName || '';
       document.getElementById('editSalaryPayment').value = p.salaryPayment || 0;
       document.getElementById('editHolidayPayment').value = p.holidayPayment || 0;
@@ -1639,19 +1737,27 @@
     });
 
     document.getElementById('deleteEmployeePaymentButton').addEventListener('click', async () => {
-      if (!confirm('¿Eliminar este pago?')) return;
+      if (!confirm('¿Eliminar este pago? Se archivará en la base de datos por seguridad.')) return;
       const el = document.getElementById('editEmployeePaymentId');
       const id = el.value;
       const diaKey = el.dataset.diaKey;
       const docId = el.dataset.docId;
       const source = el.dataset.source;
+      const pagoJson = el.dataset.pagoJson;
+
       try {
+        // 1. Archivar datos antes de eliminar (en "transacciones" ya que es un gasto de empleado)
+        let datosParaArchivar = { id, _source: source };
+        try { datosParaArchivar = pagoJson ? JSON.parse(pagoJson) : datosParaArchivar; } catch (_) {}
+        await archivarEnEliminadas('transacciones', datosParaArchivar);
+
+        // 2. Eliminar de origen
         if (source === 'pago_empleado' && diaKey) {
           await eliminarPagoDeDia(diaKey, id);
         } else if (source === 'pago_empleado_legado' && docId) {
           await db.collection('PagoEmpleado').doc(docId).delete();
         }
-        alert('Eliminado.'); closeModal('editEmployeePaymentModal'); loadAll();
+        alert('Eliminado y archivado.'); closeModal('editEmployeePaymentModal'); loadAll();
       } catch (e) { console.error(e); alert('Error: ' + e.message); }
     });
 

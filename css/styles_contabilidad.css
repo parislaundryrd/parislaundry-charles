@@ -841,7 +841,7 @@ button {
 
 .tx-table td {
   padding: 10px 14px;
-  font-size: 13px;
+  font-size: 1rem;
   color: var(--text-primary);
 }
 
@@ -853,7 +853,7 @@ button {
 }
 
 .tx-scroll {
-  max-height: 520px;
+  /*max-height: 520px;*/
   overflow-y: auto;
 }
 

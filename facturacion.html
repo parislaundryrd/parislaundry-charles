@@ -401,11 +401,11 @@
 
     // Cargar servicios, productos y empleados
     const loadServices = () => {
-      db.collection("servicio").onSnapshot((snapshot) => {
+      db.collection("servicio").get().then((snapshot) => {
         serviceSelection.innerHTML = "";
         otrosServiciosContainer.innerHTML = "";
-        hamperContainer.innerHTML = "";
-        otrosServiciosDisplay.innerHTML = "";
+        // CORRECCIÓN BUG #1: No se borran hamperContainer ni otrosServiciosDisplay
+        // para no perder lo que el usuario ya ingresó en otra pestaña o por re-renders.
 
         const hampersArray = [];
         const otrosServiciosArray = [];
@@ -976,7 +976,9 @@ ${asumirPor !== "desactivado" ? `
     };
 
     const loadProducts = () => {
-      db.collection("productos").orderBy("ordenNum").onSnapshot((snapshot) => {
+      // CORRECCIÓN BUG #1: Usar get() en vez de onSnapshot() para evitar que actualizaciones
+      // de Firestore (por otras pestañas) borren las cantidades ya ingresadas.
+      db.collection("productos").orderBy("ordenNum").get().then((snapshot) => {
         productSelection.innerHTML = "";
         snapshot.forEach((doc) => {
           const data = doc.data();

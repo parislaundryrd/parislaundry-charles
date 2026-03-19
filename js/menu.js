@@ -92,37 +92,12 @@ class LaundryMenu extends HTMLElement {
         `;
 
         this.currentUserRole = null;
-        this.logoutTimer = null;
         this.initAuth();
         this.initModal();
         this.resaltarEnlaceActivo();
         this.startDateTimeUpdate();
-        this.loadFacturasCount();
-        this.setupActivityListeners();
-    }
-
-    setupActivityListeners() {
-        // Eventos que indican actividad del usuario
-        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-        
-        events.forEach(event => {
-            document.addEventListener(event, this.resetLogoutTimer.bind(this), true);
-        });
-
-        // Iniciar el temporizador
-        this.resetLogoutTimer();
-    }
-
-    resetLogoutTimer() {
-        // Limpiar el temporizador existente
-        if (this.logoutTimer) {
-            clearTimeout(this.logoutTimer);
-        }
-        
-        // Establecer nuevo temporizador (1 hora = 3600000 ms)
-        this.logoutTimer = setTimeout(() => {
-            this.cleanAuthAndRedirect();
-        }, 3600000); // 1 hora en milisegundos
+        // CORRECCIÓN: loadFacturasCount() se llama desde finalizeAuthProcess()
+        // para garantizar que Firebase Auth ya confirmó sesión antes de hacer queries.
     }
 
     async initAuth() {
@@ -183,6 +158,13 @@ class LaundryMenu extends HTMLElement {
         this.style.display = 'block';
         
         this.setupLogout();
+
+        // CORRECCIÓN: Iniciar contadores AQUÍ, cuando Auth ya confirmó sesión.
+        // La bandera evita suscribirse dos veces (caché + onAuthStateChanged).
+        if (!this._contadoresIniciados) {
+            this._contadoresIniciados = true;
+            this.loadFacturasCount();
+        }
     }
 
     verifyPageAccess() {
@@ -221,11 +203,6 @@ class LaundryMenu extends HTMLElement {
     }
 
     cleanAuthAndRedirect() {
-        // Limpiar el temporizador
-        if (this.logoutTimer) {
-            clearTimeout(this.logoutTimer);
-        }
-        
         // Limpiar caché y cerrar sesión
         localStorage.removeItem('authUser');
         localStorage.removeItem('userRole');
@@ -245,31 +222,31 @@ class LaundryMenu extends HTMLElement {
     }
 
     loadFacturasCount() {
-        // Escuchar en tiempo real los últimos 14 días de facturas-por-dia
-        // y contar por estado en el frontend
-        const rdOffset = -4 * 60;
-        const now = new Date();
-        const localNow = new Date(now.getTime() + (rdOffset - now.getTimezoneOffset()) * 60000);
-        const hoy = localNow.toISOString().split('T')[0];
-
-        // Calcular fecha hace 14 días para no cargar demasiados documentos
-        const hace14 = new Date(localNow);
-        hace14.setDate(hace14.getDate() - 14);
-        const hace14Key = hace14.toISOString().split('T')[0];
-
+        // Escuchar en tiempo real TODA la colección facturas-por-dia
+        // sin filtrar por fecha — así funciona aunque el campo fechaString
+        // no exista en documentos antiguos o no haya índice creado.
         this.unsubscribeFacturasCount = db.collection('facturas-por-dia')
-            .where('fechaString', '>=', hace14Key)
-            .where('fechaString', '<=', hoy)
             .onSnapshot((snapshot) => {
                 let pendiente = 0, pagado = 0, pagadoListo = 0;
+
+                // Calcular fecha de hoy en RD para excluir docs futuros (seguridad)
+                const rdNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Santo_Domingo' }));
+                const hoy = `${rdNow.getFullYear()}-${String(rdNow.getMonth()+1).padStart(2,'0')}-${String(rdNow.getDate()).padStart(2,'0')}`;
+
                 snapshot.forEach(doc => {
                     const data = doc.data();
+                    // Respetar solo docs de hoy hacia atrás usando el ID del doc (YYYY-MM-DD)
+                    // o el campo fechaString si existe; si no existe ninguno, incluir igual.
+                    const docFecha = data.fechaString || doc.id;
+                    if (docFecha > hoy) return; // saltar docs futuros
+
                     (data.facturas || []).forEach(f => {
                         if (f.status === 'pago pendiente') pendiente++;
                         else if (f.status === 'pagado') pagado++;
                         else if (f.status === 'pagado listo') pagadoListo++;
                     });
                 });
+
                 this.updateDisplay('facturasCountPendiente', pendiente);
                 this.updateDisplay('facturasCountPagado', pagado);
                 this.updateDisplay('facturasCountPagadoListo', pagadoListo);
@@ -279,22 +256,20 @@ class LaundryMenu extends HTMLElement {
     }
 
     updateDisplay(elementId, count) {
-        const element = document.getElementById(elementId);
-        element.textContent = count;
-        if (count > 0) {
-            element.style.display = 'block';
-        } else {
-            element.style.display = 'none';
+        // CORRECCIÓN: usar this.querySelector() — los elementos viven dentro
+        // del Web Component y document.getElementById() no los encuentra siempre.
+        const element = this.querySelector('#' + elementId);
+        if (element) {
+            element.textContent = count;
+            element.style.display = count > 0 ? 'block' : 'none';
         }
-        
+
+        // Los elementos Dup están en facturas-generadas.html (otra página),
+        // se actualizan desde su propio onSnapshot independiente.
         const dupElement = document.getElementById(elementId + 'Dup');
         if (dupElement) {
             dupElement.textContent = count;
-            if (count > 0) {
-                dupElement.style.display = 'block';
-            } else {
-                dupElement.style.display = 'none';
-            }
+            dupElement.style.display = count > 0 ? 'inline' : 'none';
         }
     }
 
@@ -367,49 +342,30 @@ class LaundryMenu extends HTMLElement {
         updateDateTime();
     }
 
-    javascript
-updateFooterYear() {
-    try {
-        const currentYear = new Date().getFullYear();
-        const yearElements = document.querySelectorAll('#currentYear, #currentYearMobile');
-        
-        if (yearElements.length === 0) {
-            console.warn('No se encontraron elementos para mostrar el año');
-            return;
+    updateFooterYear() {
+        try {
+            const currentYear = new Date().getFullYear();
+            const yearElements = document.querySelectorAll('#currentYear, #currentYearMobile');
+            
+            if (yearElements.length === 0) {
+                console.warn('No se encontraron elementos para mostrar el año');
+                return;
+            }
+            
+            yearElements.forEach(el => {
+                el.textContent = currentYear;
+            });
+        } catch (error) {
+            console.error('Error al actualizar el año en el footer:', error);
         }
-        
-        yearElements.forEach(el => {
-            el.textContent = currentYear;
-        });
-    } catch (error) {
-        console.error('Error al actualizar el año en el footer:', error);
     }
-}
 
     disconnectedCallback() {
-        if (this.unsubscribePendiente) {
-            this.unsubscribePendiente();
-        }
-        if (this.unsubscribePagado) {
-            this.unsubscribePagado();
-        }
-        if (this.unsubscribePagadoListo) {
-            this.unsubscribePagadoListo();
-        }
-        
-        // Limpiar listeners de actividad
-        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-        events.forEach(event => {
-            document.removeEventListener(event, this.resetLogoutTimer, true);
-        });
-        
-        // Limpiar temporizador
-        if (this.logoutTimer) {
-            clearTimeout(this.logoutTimer);
+        if (this.unsubscribeFacturasCount) {
+            this.unsubscribeFacturasCount();
         }
     }
 }
-
 
 customElements.define('laundry-menu', LaundryMenu);
 
@@ -433,5 +389,3 @@ class FooterContent extends HTMLElement {
 }
 
 customElements.define('footer-content', FooterContent);
-
-

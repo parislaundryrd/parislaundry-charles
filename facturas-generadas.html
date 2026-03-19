@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 
@@ -18,7 +17,7 @@
 
 <body>
 
-  <div class="MasterBox0" style="display: ;">
+  <div class="MasterBox0">
 
     <laundry-menu></laundry-menu>
 
@@ -376,23 +375,21 @@
   let unsubscribeContadores = null;
 
   const iniciarContadoresRealTime = () => {
-    const rdOffset = -4 * 60;
-    const now = new Date();
-    const localNow = new Date(now.getTime() + (rdOffset - now.getTimezoneOffset()) * 60000);
-    const hoy = localNow.toISOString().split('T')[0];
-    const hace60 = new Date(localNow);
-    hace60.setDate(hace60.getDate() - 60);
-    const hace60Key = hace60.toISOString().split('T')[0];
-
     if (unsubscribeContadores) unsubscribeContadores();
 
     unsubscribeContadores = db.collection('facturas-por-dia')
-      .where('fechaString', '>=', hace60Key)
-      .where('fechaString', '<=', hoy)
       .onSnapshot((snapshot) => {
         let pendiente = 0, pagado = 0, listo = 0;
+
+        // Calcular fecha de hoy en RD para no contar docs futuros
+        const rdNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Santo_Domingo' }));
+        const hoy = `${rdNow.getFullYear()}-${String(rdNow.getMonth()+1).padStart(2,'0')}-${String(rdNow.getDate()).padStart(2,'0')}`;
+
         snapshot.forEach(doc => {
           const data = doc.data();
+          const docFecha = data.fechaString || doc.id;
+          if (docFecha > hoy) return; // saltar docs futuros
+
           (data.facturas || []).forEach(f => {
             if (f.status === 'pago pendiente') pendiente++;
             else if (f.status === 'pagado') pagado++;
@@ -412,8 +409,13 @@
       });
   };
 
-  // Iniciar contadores al cargar la página
-  iniciarContadoresRealTime();
+  // Iniciar contadores solo cuando Auth confirme la sesión
+  // (evita que Firestore rechace la query por falta de autenticación)
+  auth.onAuthStateChanged((user) => {
+    if (user) {
+      iniciarContadoresRealTime();
+    }
+  });
   // ===== FIN CONTADORES EN TIEMPO REAL =====
 
 
@@ -1323,20 +1325,28 @@ searchInput.addEventListener("input", () => {
      */
     async function actualizarFacturaEnDia(facturaId, facturaTimestamp, camposActualizar) {
       // Determinar el diaKey a partir del timestamp
+      // CORRECCIÓN: usar toLocaleString con America/Santo_Domingo igual que en facturacion.html
+      // El método anterior (restar 4h al UTC) calculaba el día incorrecto para facturas
+      // creadas entre medianoche y las 4am, haciendo que el status nunca se actualizara.
       let diaKey;
       if (facturaTimestamp && facturaTimestamp.toDate) {
         const fecha = facturaTimestamp.toDate();
-        // Convertir a hora RD (UTC-4)
-        const rdDate = new Date(fecha.getTime() - (4 * 60 * 60 * 1000));
-        diaKey = rdDate.toISOString().split('T')[0];
+        const rdDate = new Date(fecha.toLocaleString('en-US', { timeZone: 'America/Santo_Domingo' }));
+        const yyyy = rdDate.getFullYear();
+        const mm = String(rdDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(rdDate.getDate()).padStart(2, '0');
+        diaKey = `${yyyy}-${mm}-${dd}`;
       } else if (facturaTimestamp && facturaTimestamp._seconds) {
         const fecha = new Date(facturaTimestamp._seconds * 1000);
-        const rdDate = new Date(fecha.getTime() - (4 * 60 * 60 * 1000));
-        diaKey = rdDate.toISOString().split('T')[0];
+        const rdDate = new Date(fecha.toLocaleString('en-US', { timeZone: 'America/Santo_Domingo' }));
+        const yyyy = rdDate.getFullYear();
+        const mm = String(rdDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(rdDate.getDate()).padStart(2, '0');
+        diaKey = `${yyyy}-${mm}-${dd}`;
       } else {
-        // Fallback: buscar en los últimos días
+        // Fallback: buscar en todos los documentos (sin límite de días)
         const snapshot = await db.collection("facturas-por-dia")
-          .orderBy("fecha", "desc").limit(30).get();
+          .orderBy("fecha", "desc").get();
         for (const doc of snapshot.docs) {
           const data = doc.data();
           if (data.facturas && data.facturas.some(f => f.id === facturaId)) {
