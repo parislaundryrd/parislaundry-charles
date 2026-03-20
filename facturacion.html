@@ -89,27 +89,6 @@
             <span id="estadoCajaTexto">Verificando caja...</span>
           </div>
 
-          <div id="internetIndicador" style="
-            padding: 8px 14px;
-            border-radius: 10px;
-            font-weight: bold;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #f0f0f0;
-            color: #888;
-            border: 1px solid #ddd;
-            transition: all 0.4s ease;
-          ">
-            <span id="internetIcono" style="display:inline-flex;align-items:center;">
-              <svg id="internetSvg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-              </svg>
-            </span>
-            <span id="internetTexto">Verificando…</span>
-          </div>
-
         </div>
         <!-- Estado de Caja FIN -->
 
@@ -802,45 +781,6 @@
     })();
     // ===== FIN ESTADO DE CAJA =====
 
-    // ===== INDICADOR DE CONEXIÓN A INTERNET =====
-    (function iniciarMonitorConexion() {
-      const ind = document.getElementById('internetIndicador');
-      const icono = document.getElementById('internetSvg');
-      const texto = document.getElementById('internetTexto');
-      if (!ind) return;
-
-      const setOnline = () => {
-        ind.style.background = '#e6f9ec';
-        ind.style.borderColor = '#5ac87a';
-        ind.style.color = '#1e7e34';
-        icono.innerHTML = '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>';
-        texto.textContent = 'Conectado';
-      };
-
-      const setOffline = () => {
-        ind.style.background = '#fff0f0';
-        ind.style.borderColor = '#f5a0a0';
-        ind.style.color = '#c0392b';
-        icono.innerHTML = `<circle cx="12" cy="12" r="10" opacity="0.35"/><path d="M2 12h20" opacity="0.35"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" opacity="0.35"/><line x1="4" y1="4" x2="20" y2="20"/>`;
-        texto.textContent = 'Sin conexión';
-      };
-
-      const checkConnection = () => {
-        if (!navigator.onLine) { setOffline(); return; }
-        // Ping real con imagen transparente para confirmar conectividad
-        const img = new Image();
-        const timer = setTimeout(() => { img.src = ''; setOffline(); }, 4000);
-        img.onload = () => { clearTimeout(timer); setOnline(); };
-        img.onerror = () => { clearTimeout(timer); setOnline(); }; // error de CORS = hay red
-        img.src = `https://www.google.com/favicon.ico?_=${Date.now()}`;
-      };
-
-      window.addEventListener('online', checkConnection);
-      window.addEventListener('offline', setOffline);
-      checkConnection();
-      setInterval(checkConnection, 15000); // re-chequea cada 15 seg
-    })();
-    // ===== FIN INDICADOR DE CONEXIÓN =====
 
 
 

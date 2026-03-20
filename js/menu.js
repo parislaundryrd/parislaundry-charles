@@ -51,6 +51,14 @@ class LaundryMenu extends HTMLElement {
                         <div id="dateTime">
                             <h1 id="time">--:--:--</h1>
                             <p id="date">--/--/----</p>
+                            <div id="internetIndicador" class="internet-indicador">
+                                <span id="internetIcono" class="internet-icono">
+                                    <svg id="internetSvg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                                    </svg>
+                                </span>
+                                <span id="internetTexto">Verificando…</span>
+                            </div>
                         </div>
                     </div>
 
@@ -96,6 +104,7 @@ class LaundryMenu extends HTMLElement {
         this.initModal();
         this.resaltarEnlaceActivo();
         this.startDateTimeUpdate();
+        this.initInternetIndicator();
         // CORRECCIÓN: loadFacturasCount() se llama desde finalizeAuthProcess()
         // para garantizar que Firebase Auth ya confirmó sesión antes de hacer queries.
     }
@@ -358,6 +367,39 @@ class LaundryMenu extends HTMLElement {
         } catch (error) {
             console.error('Error al actualizar el año en el footer:', error);
         }
+    }
+
+    initInternetIndicator() {
+        const ind = this.querySelector('#internetIndicador');
+        const icono = this.querySelector('#internetSvg');
+        const texto = this.querySelector('#internetTexto');
+        if (!ind) return;
+
+        const setOnline = () => {
+            ind.dataset.state = 'online';
+            icono.innerHTML = '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>';
+            texto.textContent = 'Conectado';
+        };
+
+        const setOffline = () => {
+            ind.dataset.state = 'offline';
+            icono.innerHTML = '<circle cx="12" cy="12" r="10" opacity="0.35"/><path d="M2 12h20" opacity="0.35"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" opacity="0.35"/><line x1="4" y1="4" x2="20" y2="20"/>';
+            texto.textContent = 'Sin conexión';
+        };
+
+        const checkConnection = () => {
+            if (!navigator.onLine) { setOffline(); return; }
+            const img = new Image();
+            const timer = setTimeout(() => { img.src = ''; setOffline(); }, 4000);
+            img.onload = () => { clearTimeout(timer); setOnline(); };
+            img.onerror = () => { clearTimeout(timer); setOnline(); }; // error CORS = hay red
+            img.src = `https://www.google.com/favicon.ico?_=${Date.now()}`;
+        };
+
+        window.addEventListener('online', checkConnection);
+        window.addEventListener('offline', setOffline);
+        checkConnection();
+        setInterval(checkConnection, 15000);
     }
 
     disconnectedCallback() {
