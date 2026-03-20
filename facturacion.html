@@ -441,6 +441,7 @@
           button.dataset.librasmin = data.librasmin;
           button.dataset.librasmax = data.librasmax;
           button.dataset.preciolibras = data.preciolibras;
+          button.dataset.hastaLibraMax = data.hastaLibraMax ? "true" : "false";
           button.addEventListener("click", () => {
             addHamper(data);
           });
@@ -550,6 +551,21 @@
       updateInvoicePreview();
     };
 
+    // ── Alerta visual cuando se alcanza el límite de libra max ──
+    function mostrarAlertaLibraMax(hamperDiv, maxLibras) {
+      let alerta = hamperDiv.querySelector('.alerta-libra-max');
+      if (!alerta) {
+        alerta = document.createElement('p');
+        alerta.className = 'alerta-libra-max';
+        alerta.style.cssText = 'color:#c0392b;font-size:12px;font-weight:600;margin:2px 0 0;background:#fff0f0;border:1px solid #f5a0a0;border-radius:6px;padding:3px 8px;';
+        alerta.textContent = `⚠️ Límite máximo: ${maxLibras} lbs`;
+        hamperDiv.querySelector('#hamperWeight').after(alerta);
+      }
+      alerta.textContent = `⚠️ Límite máximo: ${maxLibras} lbs`;
+      clearTimeout(alerta._timer);
+      alerta._timer = setTimeout(() => { if (alerta.parentNode) alerta.remove(); }, 3000);
+    }
+
     const addHamper = (data) => {
       // Verifica si ya hay 30 hampers
       if (hampers.length >= 30) {
@@ -559,13 +575,14 @@
 
       const hamperDiv = document.createElement("div");
       hamperDiv.classList.add("hamper");
+      const maxLibrasInput = (data.hastaLibraMax && data.librasmax) ? parseInt(data.librasmax) : 100;
       hamperDiv.innerHTML = `
     <h3>${data.nombre}</h3>
     <img src="${data.icon}" alt="${data.nombre}">
-    <h5>Cantidad de Libras</h5>
+    <h5>Cantidad de Libras${data.hastaLibraMax ? ` <span style="font-size:11px;color:#c0392b;background:#fff0f0;border:1px solid #f5a0a0;border-radius:5px;padding:1px 6px;">Máx: ${data.librasmax} lbs</span>` : ''}</h5>
     <div id="hamperWeight">
       <button id="btnmenosmas" type="button" class="decreaseWeight">-</button>
-      <input type="number" class="weightInput" value="1" min="1" max="100" placeholder="0">
+      <input type="number" class="weightInput" value="1" min="1" max="${maxLibrasInput}" placeholder="0">
       <button id="btnmenosmas" type="button" class="increaseWeight">+</button>
     </div>
     <p class="priceDisplay">Precio: RD$0</p>
@@ -583,7 +600,11 @@
 
       // Event listeners para los botones de incremento/decremento
       hamperDiv.querySelector(".increaseWeight").addEventListener("click", () => {
-        newHamper.weightInput.value = Math.min(100, parseInt(newHamper.weightInput.value) + 1);
+        const maxLibras = (data.hastaLibraMax && data.librasmax) ? parseInt(data.librasmax) : 100;
+        newHamper.weightInput.value = Math.min(maxLibras, parseInt(newHamper.weightInput.value) + 1);
+        if (data.hastaLibraMax && parseInt(newHamper.weightInput.value) >= maxLibras) {
+          mostrarAlertaLibraMax(hamperDiv, maxLibras);
+        }
         calculatePrice(hamperDiv);
         updateInvoicePreview();
       });
@@ -602,6 +623,7 @@
 
       // Función de redondeo
       const handleRounding = () => {
+        const maxLibras = (data.hastaLibraMax && data.librasmax) ? parseInt(data.librasmax) : 100;
         let value = parseFloat(newHamper.weightInput.value);
         if (!isNaN(value)) {
           if (value >= 1) {
@@ -613,6 +635,11 @@
           } else {
             newHamper.weightInput.value = 1;
           }
+          // Aplicar límite si hastaLibraMax está activo
+          if (data.hastaLibraMax && parseInt(newHamper.weightInput.value) > maxLibras) {
+            newHamper.weightInput.value = maxLibras;
+            mostrarAlertaLibraMax(hamperDiv, maxLibras);
+          }
         } else {
           newHamper.weightInput.value = 1;
         }
@@ -622,6 +649,18 @@
 
       // Event listeners para el input
       newHamper.weightInput.addEventListener("blur", handleRounding);
+      newHamper.weightInput.addEventListener("input", () => {
+        if (data.hastaLibraMax && data.librasmax) {
+          const maxLibras = parseInt(data.librasmax);
+          const val = parseInt(newHamper.weightInput.value);
+          if (!isNaN(val) && val > maxLibras) {
+            newHamper.weightInput.value = maxLibras;
+            mostrarAlertaLibraMax(hamperDiv, maxLibras);
+          }
+        }
+        calculatePrice(hamperDiv);
+        updateInvoicePreview();
+      });
       newHamper.weightInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.keyCode === 13) {
           e.preventDefault(); // Prevenir comportamiento por defecto

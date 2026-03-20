@@ -106,7 +106,12 @@
             <div class="kpi-card" style="--stripe-color:var(--violet)">
               <div class="kpi-lbl">Hampers</div>
               <div class="kpi-val" id="kpiHampers">0</div>
-              <div class="kpi-sub">unidades vendidas</div>
+              <div class="kpi-sub" id="kpiHampersSub">hampers completos</div>
+            </div>
+            <div class="kpi-card" style="--stripe-color:var(--amber)">
+              <div class="kpi-lbl">Libras Sueltas</div>
+              <div class="kpi-val" id="kpiLibrasSueltas">0</div>
+              <div class="kpi-sub">lbs fuera de rango</div>
             </div>
             <div class="kpi-card" style="--stripe-color:var(--sky);display: none;">
               <div class="kpi-lbl">ITBIS</div>
@@ -297,6 +302,20 @@
               <div class="card-title"><span class="card-icon" style="--icon-bg:var(--violet-light)">🧺</span>Hampers por
                 Mes</div>
               <div class="chart-h200"><canvas id="monthlyHampersChart"></canvas></div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="pl-card">
+              <div class="card-title"><span class="card-icon" style="--icon-bg:var(--amber-light)">⚖️</span>Libras Sueltas por Mes</div>
+              <div class="chart-h200"><canvas id="monthlyLibrasChart"></canvas></div>
+            </div>
+            <div class="pl-card" style="display:flex;flex-direction:column;justify-content:center;">
+              <div class="card-title"><span class="card-icon" style="--icon-bg:var(--teal-light)">📋</span>¿Qué son las Libras Sueltas?</div>
+              <div style="padding:12px 16px;font-size:13px;color:var(--txt2);line-height:1.7;">
+                <p style="margin:0 0 8px;">Son las <strong style="color:var(--txt)">libras facturadas</strong> que <strong style="color:var(--amber)">no completan un hamper completo</strong> — es decir, servicios donde el peso estuvo fuera del rango mínimo–máximo del hamper.</p>
+                <p style="margin:0;">Este dato permite llevar control del volumen de ropa procesada <em>por debajo</em> del rango de hamper completo.</p>
+              </div>
             </div>
           </div>
 
@@ -631,7 +650,7 @@
     window.combinedTransactions = [];
     window.unsubListeners = [];
     let statusDonutInstance = null, dailyBarInstance = null;
-    let monthlyChartInstance = null, monthlyFacturasInstance = null, monthlyHampersInstance = null;
+    let monthlyChartInstance = null, monthlyFacturasInstance = null, monthlyHampersInstance = null, monthlyLibrasInstance = null;
 
     // ═══════════════════════════════════════════════════════════════
     // FIRESTORE — ESTRUCTURA transacciones-por-dia
@@ -1091,9 +1110,9 @@
       document.getElementById('kpiIngresosFacturas').textContent = `${facturas.length} facturas`;
       document.getElementById('kpiGastosDetalle').textContent = `TX: ${fmtMoney(gastosTx)} · Emp: ${fmtMoney(pagosEmp)}`;
 
-      let hampersTotal = 0, itbisTotal = 0, deliveryIncome = 0, deliveryCount = 0;
+      let hampersTotal = 0, librasSueltasTotal = 0, itbisTotal = 0, deliveryIncome = 0, deliveryCount = 0;
       let abonosCount = 0, abonosSaldo = 0;
-      const desgloseHampers = {}, desgloseOtros = {}, empleadosMap = {};
+      const desgloseHampers = {}, desgloseOtros = {}, desgloseLibrasSueltas = {}, empleadosMap = {};
       const metodoPagos = { efectivo: { qty: 0, monto: 0 }, transferencia: { qty: 0, monto: 0 }, tarjeta: { qty: 0, monto: 0 }, pendiente: { qty: 0, monto: 0 } };
       const statusCount = { pagado: 0, pendiente: 0, abono: 0, listo: 0, entregado: 0 };
       const dailyIngresos = {};
@@ -1122,9 +1141,18 @@
         }
 
         (f.selectedServices || []).forEach(s => {
-          hampersTotal++;
           const k = s.name || 'Sin nombre';
-          desgloseHampers[k] = (desgloseHampers[k] || 0) + 1;
+          if (s.hamperComplete === "yes") {
+            // Hamper completo (peso entre librasMin y librasMax)
+            hampersTotal++;
+            desgloseHampers[k] = (desgloseHampers[k] || 0) + 1;
+          } else {
+            // Libras sueltas (fuera del rango de hamper completo)
+            const lbs = parseInt(s.weight) || 0;
+            librasSueltasTotal += lbs;
+            const kLbs = `⚖️ ${k}`;
+            desgloseLibrasSueltas[kLbs] = (desgloseLibrasSueltas[kLbs] || 0) + lbs;
+          }
         });
 
         (f.otrosServicios || []).forEach(s => {
@@ -1140,6 +1168,8 @@
 
       // KPIs secundarios
       document.getElementById('kpiHampers').textContent = fmtNum(hampersTotal);
+      document.getElementById('kpiHampersSub').textContent = `hampers completos`;
+      document.getElementById('kpiLibrasSueltas').textContent = fmtNum(librasSueltasTotal);
       document.getElementById('kpiITBIS').textContent = fmtNum(itbisTotal.toFixed(2));
       document.getElementById('kpiDelivery').textContent = fmtNum(deliveryIncome.toFixed(2));
       document.getElementById('kpiDeliverySub').textContent = `${deliveryCount} con delivery`;
@@ -1160,9 +1190,15 @@
 
       // Hampers
       const sortedHampers = Object.entries(desgloseHampers).sort((a, b) => b[1] - a[1]);
-      document.getElementById('hamperListContainer').innerHTML = sortedHampers.length
+      const sortedLibrasSueltas = Object.entries(desgloseLibrasSueltas).sort((a, b) => b[1] - a[1]);
+      let hamperHTML = sortedHampers.length
         ? sortedHampers.map(([n, q]) => `<div class="item-row"><span class="item-name">${n}</span><span class="item-badge">${q}</span></div>`).join('')
         : '<div class="pl-empty">Sin hampers en este período</div>';
+      if (sortedLibrasSueltas.length) {
+        hamperHTML += `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;font-weight:700;color:var(--txt2);letter-spacing:.05em;text-transform:uppercase;">Libras Sueltas</div>`;
+        hamperHTML += sortedLibrasSueltas.map(([n, q]) => `<div class="item-row"><span class="item-name" style="font-size:12px;">${n}</span><span class="item-badge" style="color:#92400e;font-weight: 500;">${q} lbs</span></div>`).join('');
+      }
+      document.getElementById('hamperListContainer').innerHTML = hamperHTML;
 
       // Empleados
       const sortedEmps = Object.entries(empleadosMap).sort((a, b) => b[1].total - a[1].total);
@@ -1256,7 +1292,9 @@
     const cargarGraficoMensual = async (year) => {
       const ingresos = new Array(12).fill(0), gastos = new Array(12).fill(0);
       const facturas = new Array(12).fill(0), hampers = new Array(12).fill(0);
+      const librasSueltas = new Array(12).fill(0); // ← NUEVO: libras que no completan 1 hamper
       let anualIncome = 0, anualExpenses = 0, anualFacturas = 0, anualHampers = 0;
+      let anualLibrasSueltas = 0; // ← NUEVO
 
       try {
         const { facturas: fList } = await cargarFacturasPorRango(`${year}-01-01`, `${year}-12-31`);
@@ -1264,7 +1302,18 @@
           const d = toDate(f.timestamp); if (!d) return;
           const m = d.getMonth(), monto = parseFloat(f.total) || 0;
           ingresos[m] += monto; facturas[m]++; anualIncome += monto; anualFacturas++;
-          const hs = (f.selectedServices || []).length; hampers[m] += hs; anualHampers += hs;
+
+          // Separar hampers completos de libras sueltas
+          (f.selectedServices || []).forEach(s => {
+            if (s.hamperComplete === "yes") {
+              hampers[m]++;
+              anualHampers++;
+            } else {
+              const lbs = parseInt(s.weight) || 0;
+              librasSueltas[m] += lbs;
+              anualLibrasSueltas += lbs;
+            }
+          });
         });
       } catch (e) { console.error(e); }
 
@@ -1311,8 +1360,8 @@
         });
       } catch (e) { }
 
-      [monthlyChartInstance, monthlyFacturasInstance, monthlyHampersInstance].forEach(c => { if (c) c.destroy(); });
-      monthlyChartInstance = monthlyFacturasInstance = monthlyHampersInstance = null;
+      [monthlyChartInstance, monthlyFacturasInstance, monthlyHampersInstance, monthlyLibrasInstance].forEach(c => { if (c) c.destroy(); });
+      monthlyChartInstance = monthlyFacturasInstance = monthlyHampersInstance = monthlyLibrasInstance = null;
 
       monthlyChartInstance = new Chart(document.getElementById('monthlyChart').getContext('2d'), {
         type: 'bar', data: {
@@ -1363,6 +1412,34 @@
         }
       });
 
+      // ── Gráfico de Libras Sueltas por Mes ──
+      monthlyLibrasInstance = new Chart(document.getElementById('monthlyLibrasChart').getContext('2d'), {
+        type: 'bar', data: {
+          labels: MESES, datasets: [{
+            label: 'Libras Sueltas',
+            data: librasSueltas,
+            backgroundColor: 'rgba(217,119,6,.70)',
+            borderRadius: 5,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} lbs` } }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(17,24,39,.06)' },
+              ticks: { color: '#9aa3b5', callback: v => `${v} lbs` }
+            },
+            x: { grid: { display: false }, ticks: { color: '#9aa3b5' } }
+          }
+        }
+      });
+
       document.getElementById('yearLabelAnual').textContent = year;
       document.getElementById('annualKpiGrid').innerHTML = [
         { label: 'Ingresos del Año', val: fmtMoney(anualIncome), color: 'var(--teal)', stripe: 'var(--teal)' },
@@ -1370,6 +1447,7 @@
         { label: 'Balance del Año', val: fmtMoney(anualIncome - anualExpenses), color: anualIncome >= anualExpenses ? 'var(--teal)' : 'var(--rose)' },
         { label: 'Facturas del Año', val: fmtNum(anualFacturas), color: 'var(--amber)' },
         { label: 'Hampers del Año', val: fmtNum(anualHampers), color: 'var(--violet)' },
+        { label: 'Libras Sueltas del Año', val: `${fmtNum(anualLibrasSueltas)} lbs`, color: 'var(--amber)' },
         { label: 'Ticket Promedio', val: anualFacturas > 0 ? fmtMoney(anualIncome / anualFacturas) : 'RD$0.00', color: 'var(--indigo)' },
       ].map(k => `<div class="kpi-card" style="--stripe-color:${k.color}">
       <div class="kpi-lbl">${k.label}</div>
