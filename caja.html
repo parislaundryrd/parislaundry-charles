@@ -118,7 +118,7 @@
 
 
         <!-- Tabla para mostrar las facturas -->
-        <h2>Facturas en efectivo generadas desde el inicio de la caja:</h2>
+        <h2 id="tituloFacturasEfectivo">Facturas en efectivo desde el inicio de la caja:</h2>
         <table id="facturasTable">
           <thead>
             <tr>
@@ -142,7 +142,7 @@
 
 
         <!-- Nueva tabla para otras facturas -->
-<h2>Otras facturas del día (no afectan la caja):</h2>
+<h2 id="tituloOtrasFacturas">Otras facturas desde el inicio de la caja (no afectan la caja):</h2>
 <table id="otrasFacturasTable">
   <thead>
     <tr>
@@ -1765,93 +1765,165 @@
     };
 
 
+// Variable global para almacenar los unsubscribers de onSnapshot
+let facturasListeners = [];
+
+// Helper para obtener la clave de día en zona RD (UTC-4)
+const getDiaKeyRD = (date) => {
+  const rdOffset = -4 * 60;
+  const local = new Date(date.getTime() + (rdOffset - date.getTimezoneOffset()) * 60000);
+  return local.toISOString().split('T')[0];
+};
+
+// Helper para convertir timestamps de Firestore o planos a Date
+const toDateHelper = (ts) => {
+  if (!ts) return null;
+  if (ts.toDate) return ts.toDate();
+  if (ts._seconds) return new Date(ts._seconds * 1000);
+  if (ts.seconds) return new Date(ts.seconds * 1000);
+  return new Date(ts);
+};
+
 // Función para cargar las facturas en tiempo real
 const loadFacturasRealTime = async () => {
+  // Cancelar listeners previos si existen
+  facturasListeners.forEach(unsub => unsub());
+  facturasListeners = [];
+
   try {
-    // Obtener el timestamp de inicio de caja
+    // Obtener datos de caja
     const cajaSnapshot = await db.collection("caja").get();
-    if (!cajaSnapshot.empty) {
-      const cajaDoc = cajaSnapshot.docs[0].data();
-      const cajaTimestamp = cajaDoc.timestamp ? cajaDoc.timestamp.toDate() : new Date(0);
+    if (cajaSnapshot.empty) {
+      updateTotals();
+      return;
+    }
 
-      // Obtener la clave del día actual (hora RD, UTC-4)
-      const rdOffset = -4 * 60;
-      const now = new Date();
-      const localNow = new Date(now.getTime() + (rdOffset - now.getTimezoneOffset()) * 60000);
-      const diaKey = localNow.toISOString().split('T')[0];
+    const cajaDoc = cajaSnapshot.docs[0].data();
 
-      // Escuchar en tiempo real el documento del día actual
-      db.collection("facturas-por-dia").doc(diaKey)
-        .onSnapshot((diaDoc) => {
-          const facturasTableBody = document.getElementById("facturasTable").getElementsByTagName("tbody")[0];
-          const otrasFacturasTableBody = document.getElementById("otrasFacturasTable").getElementsByTagName("tbody")[0];
+    // Usar inicioCajaHora como límite inferior (no timestamp genérico)
+    const inicioCajaHora = cajaDoc.inicioCajaHora ? toDateHelper(cajaDoc.inicioCajaHora) : null;
+    const cierreCajaHora = cajaDoc.cierreCajaHora ? toDateHelper(cajaDoc.cierreCajaHora) : null;
 
-          facturasTableBody.innerHTML = "";
-          otrasFacturasTableBody.innerHTML = "";
+    // Determinar si la caja está abierta o cerrada
+    // Caja abierta: inicioCajaHora existe y es posterior a cierreCajaHora (o no hay cierre)
+    const cajaAbierta = inicioCajaHora && (!cierreCajaHora || inicioCajaHora > cierreCajaHora);
 
-          if (!diaDoc.exists) {
-            updateTotals();
-            return;
-          }
+    // Si no hay inicio de caja, no hay nada que mostrar
+    if (!inicioCajaHora) {
+      document.getElementById("facturasTable").getElementsByTagName("tbody")[0].innerHTML = "";
+      document.getElementById("otrasFacturasTable").getElementsByTagName("tbody")[0].innerHTML = "";
+      updateTotals();
+      updateResumenMetodosPago([]);
+      return;
+    }
 
-          const data = diaDoc.data();
-          const facturasDelDia = data.facturas || [];
+    // Límite de tiempo: desde inicioCajaHora hasta cierreCajaHora (o "ahora" si caja abierta)
+    const limiteInferior = inicioCajaHora;
+    const limiteSuperior = cajaAbierta ? null : cierreCajaHora; // null = sin límite superior (caja abierta)
 
-          let contadorEfectivo = 1;
-          let contadorOtras = 1;
+    // Actualizar títulos de tablas según estado
+    const tituloEfectivo = document.getElementById('tituloFacturasEfectivo');
+    const tituloOtras = document.getElementById('tituloOtrasFacturas');
+    if (tituloEfectivo) {
+      tituloEfectivo.textContent = cajaAbierta
+        ? 'Facturas en efectivo desde el inicio de la caja:'
+        : 'Facturas en efectivo del período de caja (cerrada):';
+    }
+    if (tituloOtras) {
+      tituloOtras.textContent = cajaAbierta
+        ? 'Otras facturas desde el inicio de la caja (no afectan la caja):'
+        : 'Otras facturas del período de caja (no afectan la caja):';
+    }
 
-          // Función para comparar solo fechas (sin hora)
-          const sonFechasDiferentes = (date1, date2) => {
-            if (!date1 || !date2) return false;
-            return date1.getFullYear() !== date2.getFullYear() ||
-                   date1.getMonth() !== date2.getMonth() ||
-                   date1.getDate() !== date2.getDate();
-          };
+    // Determinar los días que cubre esta caja (puede abarcar más de un día)
+    const diaInicio = getDiaKeyRD(limiteInferior);
+    const diaFin = limiteSuperior ? getDiaKeyRD(limiteSuperior) : getDiaKeyRD(new Date());
 
-          // Convertir timestamps de objetos planos si es necesario
-          const toDate = (ts) => {
-            if (!ts) return null;
-            if (ts.toDate) return ts.toDate();
-            if (ts._seconds) return new Date(ts._seconds * 1000);
-            return new Date(ts);
-          };
+    // Construir lista de días a consultar
+    const diasAConsultar = [];
+    let cursor = new Date(limiteInferior);
+    while (true) {
+      const diaKey = getDiaKeyRD(cursor);
+      if (!diasAConsultar.includes(diaKey)) diasAConsultar.push(diaKey);
+      if (diaKey >= diaFin) break;
+      cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+      if (diasAConsultar.length > 10) break; // Seguridad: máximo 10 días
+    }
+    if (!diasAConsultar.includes(diaFin)) diasAConsultar.push(diaFin);
 
-          // Filtrar facturas desde el inicio de caja
-          const facturasFiltradas = facturasDelDia.filter(factura => {
-            const facturaTimestamp = toDate(factura.timestamp);
-            const facturaLastPayment = factura.lastPaymentDate ? toDate(factura.lastPaymentDate) : null;
-            if (!facturaTimestamp) return false;
-            return facturaTimestamp > cajaTimestamp ||
-                  (facturaLastPayment && facturaLastPayment > cajaTimestamp);
-          });
+    // Objeto para acumular todas las facturas de todos los días
+    const facturasAcumuladas = {};
 
-          // Ordenar facturas
-          facturasFiltradas.sort((a, b) => {
-            const tsA = toDate(a.lastPaymentDate) || toDate(a.timestamp) || new Date(0);
-            const tsB = toDate(b.lastPaymentDate) || toDate(b.timestamp) || new Date(0);
-            const fechaA = toDate(a.lastPaymentDate) && toDate(a.lastPaymentDate) > toDate(a.timestamp)
-              ? toDate(a.lastPaymentDate) : toDate(a.timestamp);
-            const fechaB = toDate(b.lastPaymentDate) && toDate(b.lastPaymentDate) > toDate(b.timestamp)
-              ? toDate(b.lastPaymentDate) : toDate(b.timestamp);
-            return (fechaB || new Date(0)) - (fechaA || new Date(0));
-          });
+    // Función para refrescar las tablas con todas las facturas acumuladas
+    const refrescarTablas = () => {
+      const facturasTableBody = document.getElementById("facturasTable").getElementsByTagName("tbody")[0];
+      const otrasFacturasTableBody = document.getElementById("otrasFacturasTable").getElementsByTagName("tbody")[0];
 
-          // Procesar facturas (misma lógica de presentación que antes)
-          facturasFiltradas.forEach(factura => {
-            const tsFactura = toDate(factura.timestamp);
-            const tsLastPayment = factura.lastPaymentDate ? toDate(factura.lastPaymentDate) : null;
-            const fechaMostrar = tsLastPayment && tsLastPayment > tsFactura ? tsLastPayment : tsFactura;
+      facturasTableBody.innerHTML = "";
+      otrasFacturasTableBody.innerHTML = "";
 
-            const options = { hour: 'numeric', minute: 'numeric', hour12: true, year: 'numeric', month: 'numeric', day: 'numeric' };
-            const fechaFormateada = fechaMostrar ? fechaMostrar.toLocaleString('es-ES', options) : '';
+      // Unir todas las facturas de todos los días
+      let todasLasFacturas = [];
+      Object.values(facturasAcumuladas).forEach(lista => {
+        todasLasFacturas = todasLasFacturas.concat(lista);
+      });
 
-            let tipoFactura = '';
-            if (factura.abonoFact === "yes") {
-              tipoFactura = '<span style="color: orange;">Abono 1er Pago - </span>';
-            } else if (factura.abonoFact === "no" && factura.amountReceivedAbono1er) {
-              tipoFactura = '<span style="color: green;">Abono Completo - </span>';
-            }
-            const nombreCliente = tipoFactura + (factura.clientName || '');
+      // Función para comparar solo fechas (sin hora)
+      const sonFechasDiferentes = (date1, date2) => {
+        if (!date1 || !date2) return false;
+        return date1.getFullYear() !== date2.getFullYear() ||
+               date1.getMonth() !== date2.getMonth() ||
+               date1.getDate() !== date2.getDate();
+      };
+
+      // Filtrar facturas dentro del rango [limiteInferior, limiteSuperior]
+      const facturasFiltradas = todasLasFacturas.filter(factura => {
+        const tsFactura = toDateHelper(factura.timestamp);
+        const tsLastPayment = factura.lastPaymentDate ? toDateHelper(factura.lastPaymentDate) : null;
+        if (!tsFactura) return false;
+
+        // Usar el timestamp relevante para este filtro:
+        // Para la tabla efectivo usamos el timestamp del pago relevante
+        const tsRelevante = tsLastPayment && tsLastPayment > tsFactura ? tsLastPayment : tsFactura;
+
+        // Debe ser posterior al inicio de caja
+        const pasaInicio = tsRelevante > limiteInferior;
+        // Si hay cierre, debe ser anterior o igual al cierre
+        const pasaCierre = !limiteSuperior || tsRelevante <= limiteSuperior;
+
+        return pasaInicio && pasaCierre;
+      });
+
+      // Ordenar por fecha descendente
+      facturasFiltradas.sort((a, b) => {
+        const tsA = toDateHelper(a.lastPaymentDate) || toDateHelper(a.timestamp) || new Date(0);
+        const tsB = toDateHelper(b.lastPaymentDate) || toDateHelper(b.timestamp) || new Date(0);
+        const fechaA = toDateHelper(a.lastPaymentDate) && toDateHelper(a.lastPaymentDate) > toDateHelper(a.timestamp)
+          ? toDateHelper(a.lastPaymentDate) : toDateHelper(a.timestamp);
+        const fechaB = toDateHelper(b.lastPaymentDate) && toDateHelper(b.lastPaymentDate) > toDateHelper(b.timestamp)
+          ? toDateHelper(b.lastPaymentDate) : toDateHelper(b.timestamp);
+        return (fechaB || new Date(0)) - (fechaA || new Date(0));
+      });
+
+      let contadorEfectivo = 1;
+      let contadorOtras = 1;
+
+      // Procesar facturas
+      facturasFiltradas.forEach(factura => {
+        const tsFactura = toDateHelper(factura.timestamp);
+        const tsLastPayment = factura.lastPaymentDate ? toDateHelper(factura.lastPaymentDate) : null;
+        const fechaMostrar = tsLastPayment && tsLastPayment > tsFactura ? tsLastPayment : tsFactura;
+
+        const options = { hour: 'numeric', minute: 'numeric', hour12: true, year: 'numeric', month: 'numeric', day: 'numeric' };
+        const fechaFormateada = fechaMostrar ? fechaMostrar.toLocaleString('es-ES', options) : '';
+
+        let tipoFactura = '';
+        if (factura.abonoFact === "yes") {
+          tipoFactura = '<span style="color: orange;">Abono 1er Pago - </span>';
+        } else if (factura.abonoFact === "no" && factura.amountReceivedAbono1er) {
+          tipoFactura = '<span style="color: green;">Abono Completo - </span>';
+        }
+        const nombreCliente = tipoFactura + (factura.clientName || '');
 
             // Caso 1: Factura normal sin abonos
             if (!factura.amountReceivedAbono1erMethod && !factura.amountReceivedAbono2doMethod) {
@@ -2023,10 +2095,32 @@ const loadFacturasRealTime = async () => {
             }
           });
 
-          updateTotals();
-          updateResumenMetodosPago(facturasFiltradas);
-        });
+      updateTotals();
+      updateResumenMetodosPago(facturasFiltradas);
+    }; // fin refrescarTablas
+
+    // Si la caja está cerrada, no usar onSnapshot (solo carga estática)
+    if (!cajaAbierta) {
+      // Carga estática: obtener los documentos de los días del período
+      for (const diaKey of diasAConsultar) {
+        const diaDoc = await db.collection("facturas-por-dia").doc(diaKey).get();
+        const data = diaDoc.exists ? diaDoc.data() : {};
+        facturasAcumuladas[diaKey] = data.facturas || [];
+      }
+      refrescarTablas();
+    } else {
+      // Caja abierta: suscribir onSnapshot a cada día relevante
+      for (const diaKey of diasAConsultar) {
+        const unsub = db.collection("facturas-por-dia").doc(diaKey)
+          .onSnapshot((diaDoc) => {
+            const data = diaDoc.exists ? diaDoc.data() : {};
+            facturasAcumuladas[diaKey] = data.facturas || [];
+            refrescarTablas();
+          });
+        facturasListeners.push(unsub);
+      }
     }
+
   } catch (error) {
     console.error("Error al cargar las facturas:", error);
   }
@@ -2569,6 +2663,8 @@ const loadFacturasRealTime = async () => {
 
     // Llamar a la función para mostrar las horas de caja al cargar la página
     mostrarHorasCaja();
+    // Recargar facturas después de mostrar horas (por si el estado cambió)
+    // loadFacturasRealTime() ya se llama más abajo al cargar la página
 
 
 
