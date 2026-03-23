@@ -333,9 +333,25 @@
                   );
                 }
               }
-              // Evitar duplicados
-              if (!todasLasFacturas.some(f => f.id === factura.id)) {
+              // Deduplicar: si la misma factura aparece en dos días
+              // (el día original y el día del 2do pago del abono), quedarse con la más reciente.
+              const idxExistente = todasLasFacturas.findIndex(f => f.id === factura.id);
+              if (idxExistente === -1) {
                 todasLasFacturas.push(factura);
+              } else {
+                // Comparar cuál es más reciente: preferir la que tiene lastPaymentDate mayor
+                // o la que tiene _diaOriginal (copia del 2do pago)
+                const existente = todasLasFacturas[idxExistente];
+                const tsExistente = existente.lastPaymentDate
+                  ? (existente.lastPaymentDate.toDate ? existente.lastPaymentDate.toDate() : new Date(existente.lastPaymentDate._seconds * 1000))
+                  : null;
+                const tsNueva = factura.lastPaymentDate
+                  ? (factura.lastPaymentDate.toDate ? factura.lastPaymentDate.toDate() : new Date(factura.lastPaymentDate._seconds * 1000))
+                  : null;
+                // Reemplazar si la nueva versión tiene lastPaymentDate más reciente
+                if (tsNueva && (!tsExistente || tsNueva > tsExistente)) {
+                  todasLasFacturas[idxExistente] = factura;
+                }
               }
             });
           }
@@ -391,6 +407,7 @@
           if (docFecha > hoy) return; // saltar docs futuros
 
           (data.facturas || []).forEach(f => {
+            if (f._diaOriginal) return; // copia del 2do pago de abono — no contar
             if (f.status === 'pago pendiente') pendiente++;
             else if (f.status === 'pagado') pagado++;
             else if (f.status === 'pagado listo') listo++;
@@ -1170,17 +1187,88 @@ if (data.paymentMethod) {
         cambioAbono = 0;
       }
 
+      const ahoraTs = firebase.firestore.Timestamp.now();
+
       const updateFields = {
         amountReceivedAbono2do: montoAbono,
         amountReceivedAbono2doMethod: selectedPaymentMethod,
         changeAmountAbonoFire: cambioAbono,
         status: "pagado",
         abonoFact: "no",
-        lastPaymentDate: firebase.firestore.Timestamp.now(),
+        lastPaymentDate: ahoraTs,
         amountReceived: (currentInvoiceData.amountReceived || 0) + montoAbono
       };
 
+      // ── Actualizar la factura en su día original ──
       await actualizarFacturaEnDia(currentInvoiceId, currentInvoiceData.timestamp, updateFields);
+
+      // ── Detectar si el 2do pago es en un día distinto al de creación ──
+      // Si es así, insertar también la factura actualizada en el documento del día de hoy
+      // para que caja.html la encuentre al consultar por fechaString del día actual.
+      const tsOriginal = currentInvoiceData.timestamp && currentInvoiceData.timestamp.toDate
+        ? currentInvoiceData.timestamp.toDate()
+        : (currentInvoiceData.timestamp && currentInvoiceData.timestamp._seconds
+            ? new Date(currentInvoiceData.timestamp._seconds * 1000)
+            : null);
+
+      const tsHoy = ahoraTs.toDate();
+
+      const getRDDateStr = (d) => d.toLocaleDateString('en-CA', { timeZone: 'America/Santo_Domingo' });
+      const diaOriginal = tsOriginal ? getRDDateStr(tsOriginal) : null;
+      const diaHoy = getRDDateStr(tsHoy);
+
+      if (diaOriginal && diaOriginal !== diaHoy) {
+        // El 2do pago cayó en un día distinto → insertar en el documento del día de hoy
+        // La factura lleva el campo _diaOriginal para que facturas-generadas.html
+        // pueda deduplicar y caja.html sepa que es el 2do pago de un abono anterior.
+        const facturaActualizada = {
+          ...currentInvoiceData,
+          ...updateFields,
+          _diaOriginal: diaOriginal  // marca para deduplicación
+        };
+
+        // Sanitizar (eliminar undefined/NaN que Firestore rechaza)
+        const sanitizeObj = (obj) => {
+          if (Array.isArray(obj)) return obj.map(sanitizeObj);
+          if (obj !== null && typeof obj === 'object' && !(obj instanceof firebase.firestore.Timestamp)) {
+            const clean = {};
+            for (const [k, v] of Object.entries(obj)) {
+              if (v === undefined || (typeof v === 'number' && isNaN(v))) continue;
+              clean[k] = sanitizeObj(v);
+            }
+            return clean;
+          }
+          return obj;
+        };
+        const facturaLimpia = sanitizeObj(facturaActualizada);
+
+        await db.runTransaction(async (transaction) => {
+          const diaRef = db.collection("facturas-por-dia").doc(diaHoy);
+          const diaDoc = await transaction.get(diaRef);
+
+          if (diaDoc.exists) {
+            const facturasActuales = diaDoc.data().facturas || [];
+            // Verificar que no esté ya duplicada (por si se llama dos veces)
+            const yaExiste = facturasActuales.some(f => f.id === facturaLimpia.id && f._diaOriginal === diaOriginal);
+            if (!yaExiste) {
+              facturasActuales.push(facturaLimpia);
+              transaction.update(diaRef, {
+                facturas: facturasActuales,
+                ultimaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+              });
+            }
+          } else {
+            // Crear el documento del día si no existe todavía
+            const fechaInicioDia = new Date(diaHoy + 'T00:00:00-04:00');
+            transaction.set(diaRef, {
+              fecha: firebase.firestore.Timestamp.fromDate(fechaInicioDia),
+              fechaString: diaHoy,
+              facturas: [facturaLimpia],
+              ultimaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          }
+        });
+      }
 
       await db.collection("historialFacturasGeneradas").add({
         empleado: selectedEmployee,
@@ -1319,67 +1407,99 @@ searchInput.addEventListener("input", () => {
     // ===== UTILIDAD: Actualizar una factura dentro de facturas-por-dia =====
     /**
      * Actualiza campos de una factura específica dentro del array del documento diario.
-     * @param {string} facturaId - El campo "id" de la factura (ej: "a00123")
-     * @param {firebase.firestore.Timestamp|object} facturaTimestamp - Timestamp de la factura para identificar el día
-     * @param {object} camposActualizar - Campos a actualizar en la factura
+     * Si la factura tiene _diaOriginal (copia del 2do pago de abono en día diferente),
+     * actualiza en AMBOS documentos: el día original y el día de la copia.
      */
     async function actualizarFacturaEnDia(facturaId, facturaTimestamp, camposActualizar) {
-      // Determinar el diaKey a partir del timestamp
-      // CORRECCIÓN: usar toLocaleString con America/Santo_Domingo igual que en facturacion.html
-      // El método anterior (restar 4h al UTC) calculaba el día incorrecto para facturas
-      // creadas entre medianoche y las 4am, haciendo que el status nunca se actualizara.
-      let diaKey;
-      if (facturaTimestamp && facturaTimestamp.toDate) {
-        const fecha = facturaTimestamp.toDate();
+
+      // Obtener el diaKey del timestamp original de la factura
+      const getDiaKeyDeTimestamp = (ts) => {
+        let fecha = null;
+        if (ts && ts.toDate) fecha = ts.toDate();
+        else if (ts && ts._seconds) fecha = new Date(ts._seconds * 1000);
+        else if (ts && ts.seconds) fecha = new Date(ts.seconds * 1000);
+        if (!fecha) return null;
         const rdDate = new Date(fecha.toLocaleString('en-US', { timeZone: 'America/Santo_Domingo' }));
         const yyyy = rdDate.getFullYear();
         const mm = String(rdDate.getMonth() + 1).padStart(2, '0');
         const dd = String(rdDate.getDate()).padStart(2, '0');
-        diaKey = `${yyyy}-${mm}-${dd}`;
-      } else if (facturaTimestamp && facturaTimestamp._seconds) {
-        const fecha = new Date(facturaTimestamp._seconds * 1000);
-        const rdDate = new Date(fecha.toLocaleString('en-US', { timeZone: 'America/Santo_Domingo' }));
-        const yyyy = rdDate.getFullYear();
-        const mm = String(rdDate.getMonth() + 1).padStart(2, '0');
-        const dd = String(rdDate.getDate()).padStart(2, '0');
-        diaKey = `${yyyy}-${mm}-${dd}`;
-      } else {
-        // Fallback: buscar en todos los documentos (sin límite de días)
-        const snapshot = await db.collection("facturas-por-dia")
-          .orderBy("fecha", "desc").get();
+        return `${yyyy}-${mm}-${dd}`;
+      };
+
+      // Función interna: actualizar la factura dentro de un documento de día específico
+      const actualizarEnDoc = async (diaKey) => {
+        await db.runTransaction(async (transaction) => {
+          const diaRef = db.collection("facturas-por-dia").doc(diaKey);
+          const diaDoc = await transaction.get(diaRef);
+          if (!diaDoc.exists) return; // Si no existe ese doc, no hacer nada
+
+          const data = diaDoc.data();
+          const facturasActualizadas = (data.facturas || []).map(f => {
+            if (f.id === facturaId) {
+              return { ...f, ...camposActualizar };
+            }
+            return f;
+          });
+          transaction.update(diaRef, { facturas: facturasActualizadas });
+        });
+      };
+
+      // 1. Determinar el diaKey del día original
+      let diaKeyOriginal = getDiaKeyDeTimestamp(facturaTimestamp);
+
+      // Si no se pudo calcular desde el timestamp, buscar en todos los documentos
+      if (!diaKeyOriginal) {
+        const snapshot = await db.collection("facturas-por-dia").orderBy("fecha", "desc").get();
         for (const doc of snapshot.docs) {
           const data = doc.data();
           if (data.facturas && data.facturas.some(f => f.id === facturaId)) {
-            diaKey = doc.id;
+            diaKeyOriginal = doc.id;
             break;
           }
         }
       }
 
-      if (!diaKey) {
+      if (!diaKeyOriginal) {
         throw new Error(`No se encontró el día para la factura ${facturaId}`);
       }
 
-      await db.runTransaction(async (transaction) => {
-        const diaRef = db.collection("facturas-por-dia").doc(diaKey);
-        const diaDoc = await transaction.get(diaRef);
+      // 2. Actualizar en el documento del día original
+      await actualizarEnDoc(diaKeyOriginal);
 
-        if (!diaDoc.exists) {
-          throw new Error(`Documento del día ${diaKey} no encontrado`);
+      // 3. Si la factura tiene _diaOriginal en memoria local, significa que hay una copia
+      //    en el documento del día del 2do pago — actualizar también ahí.
+      const facturaEnMemoria = todasLasFacturas.find(f => f.id === facturaId);
+      if (facturaEnMemoria && facturaEnMemoria._diaOriginal) {
+        // La copia vive en el documento cuyo diaKey es el lastPaymentDate
+        const tsLastPayment = facturaEnMemoria.lastPaymentDate;
+        const diaKeyCopia = getDiaKeyDeTimestamp(tsLastPayment);
+        if (diaKeyCopia && diaKeyCopia !== diaKeyOriginal) {
+          await actualizarEnDoc(diaKeyCopia);
         }
-
-        const data = diaDoc.data();
-        const facturasActualizadas = (data.facturas || []).map(f => {
-          if (f.id === facturaId) {
-            return { ...f, ...camposActualizar };
+      } else {
+        // También buscar si existe algún documento de día diferente que tenga
+        // una copia de esta factura con _diaOriginal (por si no está en memoria)
+        const rdHoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santo_Domingo' });
+        if (rdHoy !== diaKeyOriginal) {
+          // Revisar el doc de hoy por si tiene una copia
+          try {
+            const docHoy = await db.collection("facturas-por-dia").doc(rdHoy).get();
+            if (docHoy.exists) {
+              const tieneCopia = (docHoy.data().facturas || []).some(
+                f => f.id === facturaId && f._diaOriginal
+              );
+              if (tieneCopia) {
+                await actualizarEnDoc(rdHoy);
+              }
+            }
+          } catch (e) {
+            // Si falla la búsqueda en el doc de hoy, continuar sin error
+            console.warn("No se pudo verificar copia en doc de hoy:", e);
           }
-          return f;
-        });
+        }
+      }
 
-        transaction.update(diaRef, { facturas: facturasActualizadas });
-      });
-
-      // Actualizar también en memoria local
+      // 4. Actualizar también en memoria local
       const idx = todasLasFacturas.findIndex(f => f.id === facturaId);
       if (idx !== -1) {
         Object.assign(todasLasFacturas[idx], camposActualizar);

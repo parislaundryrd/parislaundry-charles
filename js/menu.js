@@ -250,6 +250,7 @@ class LaundryMenu extends HTMLElement {
                     if (docFecha > hoy) return; // saltar docs futuros
 
                     (data.facturas || []).forEach(f => {
+                        if (f._diaOriginal) return; // copia del 2do pago de abono — no contar
                         if (f.status === 'pago pendiente') pendiente++;
                         else if (f.status === 'pagado') pagado++;
                         else if (f.status === 'pagado listo') pagadoListo++;
