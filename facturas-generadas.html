@@ -901,13 +901,17 @@ if (data.paymentMethod) {
       // Actualizar en facturas-por-dia
       // IMPORTANTE: NO sobreescribir timestamp (es la fecha de creación y se usa
       // para localizar el documento del día en Firestore). Guardar la fecha de pago
-      // en paymentDate para no romper la búsqueda del documento.
+      // en paymentDate y lastPaymentDate para no romper la búsqueda del documento.
+      // lastPaymentDate es usado por caja.html para filtrar la factura dentro del
+      // rango de caja correcto (el momento en que se marcó como pagada).
+      const ahoraPago = firebase.firestore.Timestamp.now();
       await actualizarFacturaEnDia(currentInvoiceId, currentInvoiceData.timestamp, {
         status: "pagado",
         paymentMethod: selectedPaymentMethod,
         amountReceived: amountReceived,
         changeAmount: change,
-        paymentDate: firebase.firestore.Timestamp.now()
+        paymentDate: ahoraPago,
+        lastPaymentDate: ahoraPago
       });
 
       await db.collection("historialFacturasGeneradas").add({

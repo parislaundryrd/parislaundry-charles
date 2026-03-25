@@ -991,11 +991,18 @@
     // ═══════════════════════════════════════════════════════════════
     // RENDER — TABLA DE TRANSACCIONES
     // ═══════════════════════════════════════════════════════════════
+    const highlight = (text, term) => {
+      if (!term || !text) return text || '';
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return String(text).replace(new RegExp(`(${escaped})`, 'gi'),
+        '<mark style="background:#fde68a;color:#78350f;border-radius:3px;padding:0 2px;">$1</mark>');
+    };
+
     const renderTransactionList = () => {
       const tbody = document.getElementById('combinedTransactionList');
       tbody.innerHTML = '';
       const typeFilter = document.getElementById('transactionTypeFilter').value;
-      const term = (document.getElementById('searchInputTx').value || '').toLowerCase();
+      const term = (document.getElementById('searchInputTxInline').value || '').toLowerCase();
       let income = 0, expenses = 0, count = 0;
 
       window.combinedTransactions.forEach(item => {
@@ -1050,10 +1057,10 @@
 
         tr.innerHTML = `
       <td><input type="checkbox" class="tx-cb" checked></td>
-      <td class="mono dim" style="font-size:0.8rem;">${item.id || '—'}</td>
+      <td class="mono dim" style="font-size:0.8rem;">${highlight(item.id || '—', term)}</td>
       <td><div>${typePill} <span style="font-size:11px;color:var(--txt3);">${srcIcon}</span></div>${paySubLabel}</td>
-      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${item.details || ''}">${item.details || '—'}</td>
-      <td class="mono" style="color:${amtColor};white-space:nowrap;">${amtSign}${fmtMoney(item.amount)}</td>
+      <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${item.details || ''}">${highlight(item.details || '—', term)}</td>
+      <td class="mono" style="color:${amtColor};white-space:nowrap;">${amtSign}${highlight(fmtMoney(item.amount), term)}</td>
       <td class="dim" style="white-space:nowrap;">${item.date ? `${item.date.toLocaleDateString('es-DO')} ${formatTime(item.date)}` : '—'}</td>
     `;
 
@@ -1501,6 +1508,7 @@
     document.getElementById('resetFilterButton').addEventListener('click', () => { setDefaultDates(); loadAll(); });
     document.getElementById('transactionTypeFilter').addEventListener('change', renderTransactionList);
     document.getElementById('searchInputTx').addEventListener('input', renderTransactionList);
+    document.getElementById('searchInputTxInline').addEventListener('input', renderTransactionList);
     document.getElementById('yearSelect').addEventListener('change', function () { cargarGraficoMensual(parseInt(this.value)); });
     document.getElementById('btnRefreshChart').addEventListener('click', () => cargarGraficoMensual(parseInt(document.getElementById('yearSelect').value)));
 
