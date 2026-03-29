@@ -831,7 +831,7 @@
       // Calcular el total de productos
       const productsDetails = selectedProducts.map(product => {
         const quantity = parseInt(product.value) || 0;
-        const productName = product.closest('.product-item').querySelector('div').textContent;
+        const productName = product.closest('.product-item').dataset.nombre || '';
         const productPrice = parseFloat(product.closest('.product-item').querySelector('.productPrice').textContent.replace('$', '')) || 0;
         const productTotal = quantity * productPrice;
 
@@ -963,8 +963,11 @@ ${asumirPor !== "desactivado" ? `
           const data = doc.data();
           const productItem = document.createElement("div");
           productItem.classList.add("product-item");
+          productItem.dataset.docId = doc.id;
+          productItem.dataset.nombre = data.nombre;
+          productItem.dataset.puntoPorVenta = data.puntoPorVenta ? "true" : "false";
           productItem.innerHTML = `
-        <div>${data.nombre}</div>
+        <div class="productNombre">${data.nombre}${data.puntoPorVenta ? '<br><span style="font-size:11px;font-weight:600;color:#4caf50;background:#eafaf1;border:1px solid #a9dfbf;border-radius:5px;padding:1px 7px;display:inline-block;margin-top:3px;">⭐ Punto por venta</span>' : ''}</div>
         <div id="detalles-hidden" style="align-items: flex-start;">${data.detalles}</div>
         <div>
           <div class="productPrice">$${data.precio}</div>
@@ -978,6 +981,28 @@ ${asumirPor !== "desactivado" ? `
         </div>
       `;
           productSelection.appendChild(productItem);
+
+          // ── ESCUCHA EN TIEMPO REAL del stock (solo actualiza el display, no toca el input) ──
+          db.collection("productos").doc(doc.id).onSnapshot((liveDoc) => {
+            if (!liveDoc.exists) return;
+            const liveData = liveDoc.data();
+            const stockDisplay = productItem.querySelector('.productQuantity');
+            const inputEl = productItem.querySelector('.productInput');
+            if (stockDisplay) {
+              stockDisplay.textContent = `Disponible: ${liveData.cantidad}`;
+              stockDisplay.style.color = liveData.cantidad < 20 ? 'red' : '#3fbfe7';
+            }
+            if (inputEl) {
+              inputEl.max = liveData.cantidad;
+              // Si la cantidad ya ingresada supera el nuevo stock, ajustar
+              const current = parseInt(inputEl.value) || 0;
+              if (current > liveData.cantidad) {
+                inputEl.value = liveData.cantidad;
+                updateProductTotal(inputEl, productItem.querySelector('.productTotal'), data.precio);
+              }
+            }
+          });
+          // ── FIN escucha en tiempo real ──
 
           const increaseButton = productItem.querySelector(".increaseProduct");
           const decreaseButton = productItem.querySelector(".decreaseProduct");
@@ -1440,7 +1465,7 @@ const verificarEstadoCaja = async () => {
           price: deliveryPrice || "0"
         }] : [{ name: "Sin Delivery", price: "0" }],
         selectedProducts: Array.from(productSelection.querySelectorAll(".productInput")).map(product => ({
-          name: product.closest('.product-item').querySelector('div').textContent || "",
+          name: product.closest('.product-item').querySelector('.productNombre')?.textContent || product.closest('.product-item').dataset.nombre || "",
           quantity: parseInt(product.value) || 0,
           price: parseFloat(product.closest('.product-item').querySelector('.productPrice').textContent.replace('$', '')) || 0
         })).filter(product => product.quantity > 0),
@@ -1520,23 +1545,16 @@ const verificarEstadoCaja = async () => {
 
         document.getElementById("invoiceIdDisplay").textContent = `${invoiceId}`;
 
-        // ========== [NUEVO CÓDIGO AÑADIDO] ==========
-        // Función para detectar productos básicos (insensible a mayúsculas/acentos)
-        const esProductoBasico = (nombre) =>
-          nombre.normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .toLowerCase()
-            .includes('basico');
-
-        // Calcular total de productos no básicos
+        // ========== PUNTOS POR VENTA ==========
+        // Solo cuentan los productos que tienen puntoPorVenta activo en Firestore
         let totalProductos = 0;
         const productosInputs = Array.from(productSelection.querySelectorAll(".productInput"));
 
         productosInputs.forEach(input => {
           const cantidad = parseInt(input.value) || 0;
           if (cantidad > 0) {
-            const nombreProducto = input.closest('.product-item').querySelector('div').textContent;
-            if (!esProductoBasico(nombreProducto)) {
+            const item = input.closest('.product-item');
+            if (item && item.dataset.puntoPorVenta === "true") {
               totalProductos += cantidad;
             }
           }
@@ -1551,7 +1569,7 @@ const verificarEstadoCaja = async () => {
             monto: firebase.firestore.FieldValue.increment(totalProductos)
           }, { merge: true });
         }
-        // ========== [FIN DE NUEVO CÓDIGO] ==========
+        // ========== FIN PUNTOS POR VENTA ==========
 
         // Actualizar inventario basado en el array "consumo" de los hampers
         for (const hamper of hampers) {
@@ -1588,13 +1606,25 @@ const verificarEstadoCaja = async () => {
         for (const product of selectedProducts) {
           const quantity = parseInt(product.value) || 0;
           if (quantity > 0) {
-            const productName = (product.closest('.product-item').querySelector('div').textContent || '').trim();
-            if (!productName) continue; // Saltar si el nombre es undefined/vacío
-            const productDoc = await db.collection("productos").where("nombre", "==", productName).get();
-            if (!productDoc.empty) {
-              const productRef = productDoc.docs[0].ref;
-              const productData = productDoc.docs[0].data();
-              const newQuantity = productData.cantidad - quantity;
+            const productItem = product.closest('.product-item');
+            // Usar el doc.id guardado en el dataset (método confiable)
+            const docId = productItem ? productItem.dataset.docId : null;
+            if (!docId) {
+              // Fallback: buscar por nombre limpio si por alguna razón no hay docId
+              const productName = (productItem ? productItem.dataset.nombre : '') || '';
+              if (!productName) continue;
+              const productDoc = await db.collection("productos").where("nombre", "==", productName).get();
+              if (!productDoc.empty) {
+                const productRef = productDoc.docs[0].ref;
+                const productData = productDoc.docs[0].data();
+                await productRef.update({ cantidad: productData.cantidad - quantity });
+              }
+              continue;
+            }
+            const productRef = db.collection("productos").doc(docId);
+            const productSnap = await productRef.get();
+            if (productSnap.exists) {
+              const newQuantity = productSnap.data().cantidad - quantity;
               await productRef.update({ cantidad: newQuantity });
             }
           }
