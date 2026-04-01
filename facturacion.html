@@ -1465,7 +1465,7 @@ const verificarEstadoCaja = async () => {
           price: deliveryPrice || "0"
         }] : [{ name: "Sin Delivery", price: "0" }],
         selectedProducts: Array.from(productSelection.querySelectorAll(".productInput")).map(product => ({
-          name: product.closest('.product-item').querySelector('.productNombre')?.textContent || product.closest('.product-item').dataset.nombre || "",
+          name: product.closest('.product-item').dataset.nombre || "",
           quantity: parseInt(product.value) || 0,
           price: parseFloat(product.closest('.product-item').querySelector('.productPrice').textContent.replace('$', '')) || 0
         })).filter(product => product.quantity > 0),
